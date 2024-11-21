@@ -1,40 +1,36 @@
-//main.js (не удалять строку)
+// main.js (не удалять строку)
 
-import { Telegram, InlineKeyboard } from 'puregram';
-import dotenv from 'dotenv';
-import { logAction } from './service/logging.js'; // Импортируем функцию логирования
-import { 
-    findOrCreateUser, 
-    incrementMessageCount, 
+import { Telegram } from 'puregram';  //  Телеграм-библиотека
+import dotenv from 'dotenv';  //  Конфиг
+import { logAction } from './service/logging.js';  //  Логирование
+import {
+    findOrCreateUser,
+    incrementMessageCount,
     incrementInlineInteractionCount,
-    toggleUserTheme // Импортируем функцию переключения темы
-} from './service/userService.js';
+    toggleUserTheme
+} from './service/userService.js'; //  Импорт сервисов
 import mongoose from 'mongoose';
+import { 
+    startKeyboard, 
+    settingsKeyboard, 
+    backToStartKeyboard 
+} from './service/keyboards.js'; //  Импорт клавиатур
 
 // Загружаем переменные окружения из .env файла
 dotenv.config();
 
 // Подключаемся к базе данных
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('База данных подключена'))
-    .catch(err => console.error('Ошибка подключения к БД:', err));
+    .then(() => console.log('Database connected'))
+    .catch(err => console.error('Error connecting to database:', err));
 
-// Инициализируем бота с токеном из переменной окружения
+// Инициализируем бота с токеном из /.env
 const telegram = Telegram.fromToken(process.env.API_TOKEN);
 
-// Функция для отправки стартового сообщения с инлайн-клавиатурой
+// Функция для отправки стартового сообщения
 const sendStartMessage = async (context) => {
-    const keyboard = InlineKeyboard.keyboard([
-        [
-            InlineKeyboard.textButton({
-                text: 'Настройки',
-                payload: 'settings'
-            })
-        ]
-    ]);
-
-    await context.send('Старт', {
-        reply_markup: keyboard,
+    await context.send('Start', {
+        reply_markup: startKeyboard,
         parse_mode: 'markdown'
     });
 };
@@ -43,6 +39,8 @@ const sendStartMessage = async (context) => {
 telegram.updates.on('message', async (context) => {
     logAction(context);
 
+    await incrementMessageCount(context.senderId);
+
     if (context.text === '/start') {
         const userData = {
             user_id: context.senderId,
@@ -50,8 +48,6 @@ telegram.updates.on('message', async (context) => {
         };
         await findOrCreateUser(userData);
         await sendStartMessage(context);
-    } else {
-        await incrementMessageCount(context.senderId);
     }
 });
 
@@ -64,75 +60,51 @@ telegram.updates.on('callback_query', async (context) => {
     const action = context.data;
     switch (action) {
         case 'settings':
-            await context.message.editText('Открыты настройки', {
-                reply_markup: InlineKeyboard.keyboard([
-                    [
-                        InlineKeyboard.textButton({
-                            text: 'Темы',
-                            payload: 'changeTheme'
-                        }),
-                        InlineKeyboard.textButton({
-                            text: 'Назад',
-                            payload: 'back_start'
-                        })
-                    ]
-                ])
+        case 'backToSettings':
+            await context.message.editText('Settings opened', {
+                reply_markup: settingsKeyboard
             });
             await context.answerCallbackQuery();
             break;
 
         case 'changeTheme':
             try {
-                // Переключаем тему пользователя
                 const newTheme = await toggleUserTheme(context.senderId);
-
-// Раскомментировать, когда сделаешь картинки. При нажатии нужно менять тему у картинки (темная/светлая)
-
-//                await context.message.editText(`Тема успешно переключена на: ${newTheme}`, {
-//                    reply_markup: InlineKeyboard.keyboard([
-//                        [
-//                            InlineKeyboard.textButton({
-//                                text: 'Назад',
-//                                payload: 'back_start'
-//                            })
-//                        ]
-//                    ])
-//                });
+                await context.message.editText(`Theme successfully switched to: ${newTheme}`, {
+                    reply_markup: backToStartKeyboard
+                });
             } catch (err) {
-                console.error('Ошибка при переключении темы:', err);
-                await context.answerCallbackQuery({ text: 'Ошибка при переключении темы', show_alert: true });
+                console.error('Error while switching theme:', err);
+                await context.answerCallbackQuery({
+                    text: 'Error while switching theme',
+                    show_alert: true
+                });
             }
             await context.answerCallbackQuery();
             break;
-        
-        case 'back_start':
+
+        case 'backToStart':
             try {
-                const keyboard = InlineKeyboard.keyboard([
-                    [
-                        InlineKeyboard.textButton({
-                            text: 'Настойки',
-                            payload: 'settings'
-                        })
-                    ]
-                ]);
-         
-                await context.message.editText('Старт', {
-                    reply_markup: keyboard,
+                await context.message.editText('Start', {
+                    reply_markup: startKeyboard,
                     parse_mode: 'markdown'
                 });
             } catch (err) {
-                console.error('"back_start": Error while returning to start screen:', err);
-                await context.answerCallbackQuery({ 
-                    text: 'Error while returning to start screen', 
-                    show_alert: true 
+                console.error('Error while returning to start screen:', err);
+                await context.answerCallbackQuery({
+                    text: 'Error while returning to start screen',
+                    show_alert: true
                 });
             }
             await context.answerCallbackQuery();
-            break;  
-
+            break;
+   
         default:
-            console.error(`Неизвестное действие: ${action}`);
-            await context.answerCallbackQuery({ text: 'Неизвестное действие', show_alert: true });
+            console.error(`Unknown action: ${action}`);
+            await context.answerCallbackQuery({
+                text: 'Unknown action',
+                show_alert: true
+            });
             break;
     }
 });
@@ -140,12 +112,12 @@ telegram.updates.on('callback_query', async (context) => {
 // Запуск бота и получение информации о нём
 (async () => {
     try {
-        const botInfo = await telegram.api.getMe(); // Получаем информацию о боте
-        const botUsername = botInfo.username; // Получаем имя пользователя бота
+        const botInfo = await telegram.api.getMe();
+        const botUsername = botInfo.username;
 
         await telegram.updates.startPolling();
-        console.log(`@${botUsername} запущен`); // Не менять текст
+        console.log(`@${botUsername} started`);
     } catch (err) {
-        console.error('Ошибка при запуске:', err);
+        console.error('Error starting bot:', err);
     }
 })();
