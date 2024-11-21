@@ -6,7 +6,8 @@ import { logAction } from './service/logging.js'; // Импортируем фу
 import { 
     findOrCreateUser, 
     incrementMessageCount, 
-    incrementInlineInteractionCount 
+    incrementInlineInteractionCount,
+    toggleUserTheme // Импортируем функцию переключения темы
 } from './service/userService.js';
 import mongoose from 'mongoose';
 
@@ -21,7 +22,7 @@ mongoose.connect(process.env.MONGO_URI)
 // Инициализируем бота с токеном из переменной окружения
 const telegram = Telegram.fromToken(process.env.API_TOKEN);
 
-// Функция для отправки стартового сообщения с инлайн клавиатурой
+// Функция для отправки стартового сообщения с инлайн-клавиатурой
 const sendStartMessage = async (context) => {
     const keyboard = InlineKeyboard.keyboard([
         [
@@ -81,7 +82,27 @@ telegram.updates.on('callback_query', async (context) => {
             break;
 
         case 'changeTheme':
-            await context.answerCallbackQuery({ text: 'Выбор темы пока не реализован.' });
+            try {
+                // Переключаем тему пользователя
+                const newTheme = await toggleUserTheme(context.senderId);
+
+// Раскомментировать, когда сделаешь картинки. При нажатии нужно менять тему у картинки (темная/светлая)
+
+//                await context.message.editText(`Тема успешно переключена на: ${newTheme}`, {
+//                    reply_markup: InlineKeyboard.keyboard([
+//                        [
+//                            InlineKeyboard.textButton({
+//                                text: 'Назад',
+//                                payload: 'back_start'
+//                            })
+//                        ]
+//                    ])
+//                });
+            } catch (err) {
+                console.error('Ошибка при переключении темы:', err);
+                await context.answerCallbackQuery({ text: 'Ошибка при переключении темы', show_alert: true });
+            }
+            await context.answerCallbackQuery();
             break;
 
         default:

@@ -9,7 +9,7 @@ const UserSchema = new mongoose.Schema({
     inlineInteractionCount: { type: Number, default: 0 },
     firstMessageDate: { type: Date, default: () => new Date() },
     lastInteractionDate: { type: Date, default: () => new Date() },
-    theme: { type: String, default: 'light', enum: ['dark', 'light', 'purple'] },
+    theme: { type: String, default: 'light', enum: ['dark', 'light'] },
     language: { type: String, default: 'ru', enum: ['ru', 'en'] }
 });
 
