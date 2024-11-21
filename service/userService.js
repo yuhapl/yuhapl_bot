@@ -1,14 +1,7 @@
 // /service/userService.js (не удалять)
 
 import { User } from '../models/User.js';
-import { 
-    logCreateUser, 
-    logExistUser, 
-    logIncrementMessageCount, 
-    logIncrementInlineInteractionCount, 
-    logUpdateLastInteractionDate,
-    logToggleUserTheme,
-    } from './logging.js';
+import * as log from './logging.js';
 
 // Создать или найти пользователя
 export const findOrCreateUser = async (userData) => {
@@ -21,9 +14,9 @@ export const findOrCreateUser = async (userData) => {
         // Создаём нового пользователя, если он отсутствует
         user = new User(userData);
         await user.save();
-        await logCreateUser(user_id);
+        await log.CreateUser(user_id);
     } else {
-        await logExistUser(user_id);
+        await log.ExistUser(user_id);
     }
     return user;
 };
@@ -36,7 +29,7 @@ export const toggleUserTheme = async (userId) => {
     user.theme = user.theme === 'dark' ? 'light' : 'dark';
     await user.save();
 
-    await logToggleUserTheme(userId, user.theme);
+    await log.ToggleUserTheme(userId, user.theme);
 
     return user.theme;
 };
@@ -50,7 +43,7 @@ export const incrementMessageCount = async (userId) => {
             $set: { lastInteractionDate: new Date() }
         }
     );
-    await logIncrementMessageCount(userId);
+    await log.IncrementMessageCount(userId);
 };
 
 // Увеличить количество взаимодействий с инлайн-кнопками
@@ -62,7 +55,7 @@ export const incrementInlineInteractionCount = async (userId) => {
             $set: { lastInteractionDate: new Date() }
         }
     );
-    await logIncrementInlineInteractionCount(userId);
+    await log.IncrementInlineInteractionCount(userId);
 };
 
 // Обновить дату последнего взаимодействия
@@ -73,5 +66,5 @@ export const updateLastInteractionDate = async (userId) => {
             $set: { lastInteractionDate: new Date() }
         }
     );
-    await logUpdateLastInteractionDate(userId);
+    await log.UpdateLastInteractionDate(userId);
 };

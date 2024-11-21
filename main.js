@@ -2,7 +2,7 @@
 
 import { Telegram } from 'puregram';  //  Телеграм-библиотека
 import dotenv from 'dotenv';  //  Конфиг
-import { logAction } from './service/logging.js';  //  Логирование
+import * as log from './service/logging.js';
 import {
     findOrCreateUser,
     incrementMessageCount,
@@ -10,19 +10,16 @@ import {
     toggleUserTheme
 } from './service/userService.js'; //  Импорт сервисов
 import mongoose from 'mongoose';
-import { 
-    startKeyboard, 
-    settingsKeyboard, 
-    backToStartKeyboard 
-} from './service/keyboards.js'; //  Импорт клавиатур
+import { startKeyboard, settingsKeyboard, backToStartKeyboard } from './service/keyboards.js'; //  Импорт клавиатур
+import { getAccessToken } from './service/apiService.js'; // Импорт API сервиса
 
 // Загружаем переменные окружения из .env файла
 dotenv.config();
 
 // Подключаемся к базе данных
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('Database connected'))
-    .catch(err => console.error('Error connecting to database:', err));
+    .then(() => log.databaseConnect())
+    .catch(err => log.databaseConnectError(err));
 
 // Инициализируем бота с токеном из /.env
 const telegram = Telegram.fromToken(process.env.API_TOKEN);
@@ -30,14 +27,14 @@ const telegram = Telegram.fromToken(process.env.API_TOKEN);
 // Функция для отправки стартового сообщения
 const sendStartMessage = async (context) => {
     await context.send('Start', {
-        reply_markup: startKeyboard,
+        reply_markup: await startKeyboard(context.senderId),  // Используем асинхронный вызов для startKeyboard
         parse_mode: 'markdown'
     });
 };
 
 // Обработчик команды /start
 telegram.updates.on('message', async (context) => {
-    logAction(context);
+    log.Action(context);
     await incrementMessageCount(context.senderId);
 
     if (context.text === '/start') {
@@ -51,7 +48,7 @@ telegram.updates.on('message', async (context) => {
 
 // Обработчик инлайн-кнопок
 telegram.updates.on('callback_query', async (context) => {
-    logAction(context);
+    log.Action(context);
 
     await incrementInlineInteractionCount(context.senderId);
 
@@ -96,7 +93,14 @@ telegram.updates.on('callback_query', async (context) => {
             }
             await context.answerCallbackQuery();
             break;
-   
+
+        case 'configs':
+            await context.answerCallbackQuery({
+                text: 'Temp text',  // Отправляем текст при нажатии на кнопку "Configs"
+                show_alert: true
+            });
+            break;
+
         default:
             console.error(`Unknown action: ${action}`);
             await context.answerCallbackQuery({
@@ -114,8 +118,13 @@ telegram.updates.on('callback_query', async (context) => {
         const botUsername = botInfo.username;
 
         await telegram.updates.startPolling();
-        console.log(`@${botUsername} started`);
+        log.StartPolling(botUsername);
+
+        // Получаем токен из API сервиса
+        const token = getAccessToken();
+        log.TokenUpdate(token);
+
     } catch (err) {
-        console.error('Error starting bot:', err);
+        log.TokenUpdateError(err);
     }
 })();
