@@ -17,12 +17,12 @@ export const logAction = (context) => {
 
 export const logCreateUser = (userId) => {
     const time = getCurrentTime();
-    console.log(`[${time}] ${userId} added to the database.`);
+    console.log(`[${time}] ${userId}: Added to the database.`);
 };
 
 export const logExistUser = (userId) => {
     const time = getCurrentTime();
-    console.log(`[${time}] ${userId} already exists in the database.`);
+    console.log(`[${time}] ${userId}: Already exists in the database.`);
 };
 
 export const logIncrementMessageCount = (userId) => {

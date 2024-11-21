@@ -38,13 +38,11 @@ const sendStartMessage = async (context) => {
 // Обработчик команды /start
 telegram.updates.on('message', async (context) => {
     logAction(context);
-
     await incrementMessageCount(context.senderId);
 
     if (context.text === '/start') {
         const userData = {
             user_id: context.senderId,
-            username: context.sender?.username || null // Проверяем наличие username
         };
         await findOrCreateUser(userData);
         await sendStartMessage(context);

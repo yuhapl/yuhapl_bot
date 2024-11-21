@@ -7,19 +7,23 @@ import {
     logIncrementMessageCount, 
     logIncrementInlineInteractionCount, 
     logUpdateLastInteractionDate,
-    logToggleUserTheme
-} from './logging.js';
+    logToggleUserTheme,
+    } from './logging.js';
 
 // Создать или найти пользователя
 export const findOrCreateUser = async (userData) => {
-    let user = await User.findOne({ user_id: userData.user_id });
-    const userId = userData.user_id;
+    const { user_id} = userData;
+
+    // Пытаемся найти пользователя
+    let user = await User.findOne({ user_id });
+
     if (!user) {
+        // Создаём нового пользователя, если он отсутствует
         user = new User(userData);
         await user.save();
-        await logCreateUser(userId);
+        await logCreateUser(user_id);
     } else {
-        await logExistUser(userId);
+        await logExistUser(user_id);
     }
     return user;
 };
