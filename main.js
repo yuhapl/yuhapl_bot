@@ -104,6 +104,31 @@ telegram.updates.on('callback_query', async (context) => {
             }
             await context.answerCallbackQuery();
             break;
+        
+        case 'back_start':
+            try {
+                const keyboard = InlineKeyboard.keyboard([
+                    [
+                        InlineKeyboard.textButton({
+                            text: 'Настойки',
+                            payload: 'settings'
+                        })
+                    ]
+                ]);
+         
+                await context.message.editText('Старт', {
+                    reply_markup: keyboard,
+                    parse_mode: 'markdown'
+                });
+            } catch (err) {
+                console.error('"back_start": Error while returning to start screen:', err);
+                await context.answerCallbackQuery({ 
+                    text: 'Error while returning to start screen', 
+                    show_alert: true 
+                });
+            }
+            await context.answerCallbackQuery();
+            break;  
 
         default:
             console.error(`Неизвестное действие: ${action}`);
