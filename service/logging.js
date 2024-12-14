@@ -8,52 +8,52 @@ export const Action = (context) => {
     const time = getCurrentTime();
 
     if (context.text) {
-        console.log(`[${time}] ${userId}: Command "${context.text}" executed.`);
+        console.log(`[${time}] ${userId}: User command "${context.text}" executed.`);
     } else if (context.data) {
-        console.log(`[${time}] ${userId}: Callback action "${context.data}" triggered.`);
+        console.log(`[${time}] ${userId}: User callback action "${context.data}" triggered.`);
     } else {
-        console.log(`[${time}] ${userId}: Unrecognized action.`);
+        console.log(`[${time}] ${userId}: User unrecognized action.`);
     }
 };
 
 export const CreateUser = (userId) => {
     const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: Added to the database.`);
+    console.log(`[${time}] ${userId}: User added to the database.`);
 };
 
 export const ExistUser = (userId) => {
     const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: Already exists in the database.`);
+    console.log(`[${time}] ${userId}: User already exists in the database.`);
 };
 
 export const IncrementMessageCount = (userId) => {
     const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: Message count incremented.`);
+    console.log(`[${time}] ${userId}: User message count incremented.`);
 };
 
 export const IncrementInlineInteractionCount = (userId) => {
     const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: Inline interaction count incremented.`);
+    console.log(`[${time}] ${userId}: User inline interaction count incremented.`);
 };
 
 export const UpdateLastInteractionDate = (userId) => {
     const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: Last interaction date updated.`);
+    console.log(`[${time}] ${userId}: User last interaction date updated.`);
 };
 
 export const ToggleUserTheme = (userId, newTheme) => {
     const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: Theme switched to "${newTheme}".`);
+    console.log(`[${time}] ${userId}: User theme switched to "${newTheme}".`);
 };
 
 export const TokenUpdate = (token) => {
     const time = getCurrentTime();
-    console.log(`[${time}] Token updated: ${token}`)
+    console.log(`[${time}] API token updated: ${token}`)
 }
 
 export const TokenUpdateError = (err) => {
     const time = getCurrentTime();
-    console.log(`[${time}] Error of updating token:`, err)
+    console.log(`[${time}] Error of updating API token:`, err)
 }
 
 export const StartPolling = (botUsername) => {
@@ -63,10 +63,10 @@ export const StartPolling = (botUsername) => {
 
 export const databaseConnect = () => {
     const time = getCurrentTime();
-    console.log(`[${time}] Database connected`)
+    console.log(`[${time}] MongoDB connected`)
 }
 
 export const databaseConnectError = (err) => {
     const time = getCurrentTime();
-    console.log(`[${time}] Error connecting to database:`, err)
+    console.log(`[${time}] Error connecting to MongoDB:`, err)
 }
