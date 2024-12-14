@@ -1,46 +1,61 @@
+// service/keyboard.js
+
 import { InlineKeyboard } from 'puregram';
-import sqlite3 from 'sqlite3';
-import { promisify } from 'util';
-
-// Открываем базу данных SQLite
-const db = new sqlite3.Database('/var/lib/marzban/db.sqlite3');
-
-// Преобразуем callback-методы SQLite в промисы
-const getAsync = promisify(db.get).bind(db);
+import axios from 'axios';
+import * as log from './logging.js'
+import { getAccessToken } from './apiService'; // Импортируем функцию для получения токена
 
 // Функция для проверки, активен ли пользователь
 const isUserActive = async (userId) => {
-    try {
-        const row = await getAsync('SELECT note, status FROM users WHERE note = ? AND status = "active"', [userId]);
-        return row ? true : false;
-    } catch (err) {
-        console.error('Error checking user status:', err);
-        return false;
-    }
+	try {
+		const token = getAccessToken(); // Получаем токен
+		if (!token) {
+            const err = ("isUserActve no access token available")
+			log.getAccessTokenError(err)
+		}
+
+		// Выполняем запрос к API для получения данных о пользователе
+		const response = await axios.get(`https://sub.yuha.pl/api/user/${userId}`, {
+			headers: {
+				'accept': 'application/json',
+				'Authorization': `Bearer ${token}`, // Передаем токен в заголовке
+			},
+		});
+
+		const { status } = response.data; // Извлекаем статус пользователя из ответа
+
+		// Проверяем, активен ли пользователь
+		return status === 'active'; // Возвращаем true, если статус "active", иначе false
+        log.isUserActiveTrue(userId);
+	} catch (err) {
+		log.isUserActiveError(err, userId);
+        log.isUserActiveFalse(userId);
+		return false; // Возвращаем false в случае ошибки
+	}
 };
 
 // Клавиатура для начального сообщения с условной кнопкой "Configs"
 export const startKeyboard = async (userId) => {
-    const keyboard = [
-        [
-            InlineKeyboard.textButton({
-                text: 'Settings',
-                payload: 'settings'
-            })
-        ]
-    ];
+	const keyboard = [
+		[
+			InlineKeyboard.textButton({
+				text: 'Settings',
+				payload: 'settings'
+			})
+		]
+	];
 
-    // Проверяем, является ли пользователь активным и добавляем кнопку "Configs"
-    if (await isUserActive(userId)) {
-        keyboard.push([
-            InlineKeyboard.textButton({
-                text: 'Configs',
-                payload: 'configs'
-            })
-        ]);
-    }
+	// Проверяем, является ли пользователь активным и добавляем кнопку "Configs"
+	if (await isUserActive(userId)) {
+		keyboard.push([
+			InlineKeyboard.textButton({
+				text: 'Configs',
+				payload: 'configs'
+			})
+		]);
+	}
 
-    return InlineKeyboard.keyboard(keyboard);
+	return InlineKeyboard.keyboard(keyboard);
 };
 
 // Клавиатура для настроек

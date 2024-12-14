@@ -122,8 +122,11 @@ telegram.updates.on('callback_query', async (context) => {
 
         // Получаем токен из API сервиса
         const token = getAccessToken();
-        log.TokenUpdate(token);
-
+        if (token) {
+            log.TokenUpdate(token);
+        } else {
+            log.TokenUpdateError(err);
+        }
     } catch (err) {
         log.TokenUpdateError(err);
     }
