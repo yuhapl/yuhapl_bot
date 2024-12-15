@@ -2,6 +2,7 @@
 
 import { Telegram } from 'puregram';  //  Телеграм-библиотека
 import dotenv from 'dotenv';  //  Конфиг
+import axios from 'axios';
 import * as log from './service/logging.js';
 import {
     findOrCreateUser,
@@ -10,8 +11,13 @@ import {
     toggleUserTheme
 } from './service/userService.js'; //  Импорт сервисов
 import mongoose from 'mongoose';
-import { startKeyboard, settingsKeyboard, backToStartKeyboard } from './service/keyboards.js'; //  Импорт клавиатур
-import { initializeAccessToken } from './service/apiService.js'; // Импорт API сервиса
+import { 
+    startKeyboard, 
+    settingsKeyboard, 
+    backToStartKeyboard,
+    generateConfigKeyboard 
+} from './service/keyboards.js'; //  Импорт клавиатур
+import { initializeAccessToken, getAccessToken } from './service/apiService.js'; // Импорт API сервиса
 
 // Загружаем переменные окружения из .env файла
 dotenv.config();
@@ -55,12 +61,16 @@ telegram.updates.on('callback_query', async (context) => {
     const action = context.data;
     switch (action) {
         case 'settings':
-        case 'backToSettings':
             await context.message.editText('Settings opened', {
                 reply_markup: settingsKeyboard
             });
             await context.answerCallbackQuery();
             break;
+            
+
+        case 'backToSettings':
+            break;
+
 
         case 'changeTheme':
             try {
@@ -77,6 +87,7 @@ telegram.updates.on('callback_query', async (context) => {
             }
             await context.answerCallbackQuery();
             break;
+
 
         case 'backToStart':
             try {
@@ -95,22 +106,92 @@ telegram.updates.on('callback_query', async (context) => {
             await context.answerCallbackQuery();
             break;
 
-        case 'configs':
-            await context.answerCallbackQuery({
-                text: 'Temp text',  // Отправляем текст при нажатии на кнопку "Configs"
-                show_alert: true
-            });
-            break;
 
-        default:
-            console.error(`Unknown action: ${action}`);
-            await context.answerCallbackQuery({
-                text: 'Unknown action',
-                show_alert: true
+        case 'configs': {
+            const userData = await getUserData(context.senderId);
+            
+//            console.log(userData)
+            
+            // Генерация клавиатуры с конфигами
+            const configKeyboard = generateConfigKeyboard(userData);
+    
+            await context.message.editText('Choose a config:', {
+                reply_markup: configKeyboard,
+                parse_mode: 'markdown'
             });
+        
+            await context.answerCallbackQuery();
             break;
+        }
+        
+        // Возврат к списку конфигов
+        case 'backToConfigs': {
+            const userData = await getUserData(context.senderId);
+    
+            if (!userData) {
+                await context.answerCallbackQuery({
+                    text: 'Error retrieving configs',
+                    show_alert: true
+                });
+                return;
+            }
+        
+            const configKeyboard = generateConfigKeyboard(userData);
+            await context.message.editText('Choose a config:', {
+                reply_markup: configKeyboard,
+                parse_mode: 'markdown'
+            });
+        
+            await context.answerCallbackQuery();
+            break;
+        }
+
+        // Обработка выбора конкретного конфига
+        default:
+            if (action.startsWith('config_')) {
+                const userData = await getUserData(context.senderId);
+                if (!userData) {
+                    await context.answerCallbackQuery({
+                        text: 'Error retrieving config',
+                        show_alert: true
+                    });
+                    return;
+                }
+        
+                const configIndex = parseInt(action.split('_')[1], 10);
+                const configLink = userData.links[configIndex];
+    
+                await context.message.editText(`\`${configLink}\``, {
+                    parse_mode: 'markdown'
+                });
+    
+                await context.answerCallbackQuery();
+                break;
+            }
     }
 });
+
+/**
+ * Асинхронная функция для получения данных пользователя
+ * @param {Number} userId - ID пользователя
+ * @returns {Object|null} - Данные пользователя или null в случае ошибки
+ */
+const getUserData = async (userId) => {
+    try {
+        const token = getAccessToken();
+//        console.log(token)
+        if (!token) throw new Error('No access token available');
+
+        const response = await axios.get(`https://sub.yuha.pl/api/user/${userId}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+
+        return response.data;
+    } catch (error) {
+        log.isUserActiveError(error.message, userId);
+        return null;
+    }
+};
 
 // Запуск бота и получение информации о нём
 (async () => {
