@@ -3,6 +3,7 @@
 import { InlineKeyboard } from 'puregram';
 import axios from 'axios';
 import * as log from './logging.js'
+import { getAccessToken } from './apiService.js';
 
 // Функция для проверки, активен ли пользователь
 const isUserActive = async (userId) => {
