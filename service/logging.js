@@ -47,46 +47,40 @@ export const ToggleUserTheme = (userId, newTheme) => {
 
 export const setAccessToken = (token) => {
     const time = getCurrentTime();
-    console.log(`[${time}]: API token setted: ${token}`)
+    console.log(`[${time}]: API token setted: ${token}.`)
 }
 
 export const setAccessTokenError = (err) => {
     const time = getCurrentTime();
-    console.log(`[${time}]: Error of setting API token:`, err)
+    console.log(`[${time}]: Error of setting API token: ${err}.`)
 }
 
 export const getAccessTokenError = (err) => {
     const time = getCurrentTime();
-    console.log(`[${time}]: Error of getting API token:`, err)
+    console.log(`[${time}]: Error of getting API token: ${err}.`)
 }
 
 export const startPolling = (botUsername) => {
     const time = getCurrentTime();
-    console.log(`[${time}]: Bot started: @${botUsername}`)
+    console.log(`[${time}]: Bot started: @${botUsername}.`)
 }
 
 export const databaseConnect = () => {
     const time = getCurrentTime();
-    console.log(`[${time}]: MongoDB connected`)
+    console.log(`[${time}]: MongoDB connected.`)
 }
 
 export const databaseConnectError = (err) => {
     const time = getCurrentTime();
-    console.log(`[${time}]: Error connecting to MongoDB:`, err)
+    console.log(`[${time}]: Error connecting to MongoDB: ${err}.`)
 }
 
 export const isUserActiveError = (err, userId) => {
     const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: Error checking user activity status:`, err)
+    console.log(`[${time}] ${userId}: Error checking user activity status: ${err}.`)
 }
 
-export const isUserActiveTrue = (err, userId) => {
+export const isUserActive = (userId, status) => {
     const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: User status check: true`)
+    console.log(`[${time}] ${userId}: User activity status check: ${status}.`)
 }
-
-export const isUserActiveFalse = (err, userId) => {
-    const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: User status check: false`)
-}
-

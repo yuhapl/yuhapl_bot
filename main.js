@@ -1,7 +1,7 @@
 // main.js (не удалять строку)
 
-import { Telegram } from 'puregram';  //  Телеграм-библиотека
-import dotenv from 'dotenv';  //  Конфиг
+import { Telegram } from 'puregram';
+import dotenv from 'dotenv';
 import axios from 'axios';
 import * as log from './service/logging.js';
 import {
@@ -9,17 +9,11 @@ import {
     incrementMessageCount,
     incrementInlineInteractionCount,
     toggleUserTheme
-} from './service/userService.js'; //  Импорт сервисов
+} from './service/userService.js';
 import mongoose from 'mongoose';
-import { 
-    startKeyboard, 
-    settingsKeyboard, 
-    backToStartKeyboard,
-    generateConfigKeyboard 
-} from './service/keyboards.js'; //  Импорт клавиатур
-import { initializeAccessToken, getAccessToken } from './service/apiService.js'; // Импорт API сервиса
+import * as keyboard from './service/keyboards.js';
+import { initializeAccessToken, getAccessToken } from './service/apiService.js';
 
-// Загружаем переменные окружения из .env файла
 dotenv.config();
 
 // Подключаемся к базе данных
@@ -27,16 +21,7 @@ mongoose.connect(process.env.MONGO_URI)
     .then(() => log.databaseConnect())
     .catch(err => log.databaseConnectError(err));
 
-// Инициализируем бота с токеном из /.env
 const telegram = Telegram.fromToken(process.env.API_TOKEN);
-
-// Функция для отправки стартового сообщения
-const sendStartMessage = async (context) => {
-    await context.send('Start', {
-        reply_markup: await startKeyboard(context.senderId),  // Используем асинхронный вызов для startKeyboard
-        parse_mode: 'markdown'
-    });
-};
 
 // Обработчик команды /start
 telegram.updates.on('message', async (context) => {
@@ -52,6 +37,14 @@ telegram.updates.on('message', async (context) => {
     }
 });
 
+// Функция для отправки стартового сообщения
+const sendStartMessage = async (context) => {
+    await context.send('Start', {
+        reply_markup: await keyboard.start(context.senderId),  // Используем асинхронный вызов для startKeyboard
+        parse_mode: 'markdown'
+    });
+};
+
 // Обработчик инлайн-кнопок
 telegram.updates.on('callback_query', async (context) => {
     log.Action(context);
@@ -62,7 +55,7 @@ telegram.updates.on('callback_query', async (context) => {
     switch (action) {
         case 'settings':
             await context.message.editText('Settings opened', {
-                reply_markup: settingsKeyboard
+                reply_markup: keyboard.settings
             });
             await context.answerCallbackQuery();
             break;
@@ -76,7 +69,7 @@ telegram.updates.on('callback_query', async (context) => {
             try {
                 const newTheme = await toggleUserTheme(context.senderId);
                 await context.message.editText(`Theme successfully switched to: ${newTheme}`, {
-                    reply_markup: backToStartKeyboard
+                    reply_markup: keyboard.backToStart
                 });
             } catch (err) {
                 console.error('Error while switching theme:', err);
@@ -91,9 +84,8 @@ telegram.updates.on('callback_query', async (context) => {
 
         case 'backToStart':
             try {
-                const keyboard = await startKeyboard(context.senderId); // Корректно вызываем функцию с userId
                 await context.message.editText('Start', {
-                    reply_markup: keyboard, // Передаём результат вызова функции
+                    reply_markup: await keyboard.start(context.senderId),
                     parse_mode: 'markdown'
                 });
             } catch (err) {
@@ -101,22 +93,18 @@ telegram.updates.on('callback_query', async (context) => {
                 await context.answerCallbackQuery({
                     text: 'Error while returning to start screen',
                     show_alert: true
-                });
+                }); 
             }
             await context.answerCallbackQuery();
             break;
 
 
-        case 'configs': {
+        case 'configList': {
             const userData = await getUserData(context.senderId);
             
-//            console.log(userData)
-            
             // Генерация клавиатуры с конфигами
-            const configKeyboard = generateConfigKeyboard(userData);
-    
             await context.message.editText('Choose a config:', {
-                reply_markup: configKeyboard,
+                reply_markup: keyboard.generateConfigList(userData),
                 parse_mode: 'markdown'
             });
         
@@ -125,7 +113,7 @@ telegram.updates.on('callback_query', async (context) => {
         }
         
         // Возврат к списку конфигов
-        case 'backToConfigs': {
+        case 'backToConfiList': {
             const userData = await getUserData(context.senderId);
     
             if (!userData) {
@@ -136,9 +124,8 @@ telegram.updates.on('callback_query', async (context) => {
                 return;
             }
         
-            const configKeyboard = generateConfigKeyboard(userData);
             await context.message.editText('Choose a config:', {
-                reply_markup: configKeyboard,
+                reply_markup: keyboard.generateConfigList(userData),
                 parse_mode: 'markdown'
             });
         
@@ -160,11 +147,21 @@ telegram.updates.on('callback_query', async (context) => {
         
                 const configIndex = parseInt(action.split('_')[1], 10);
                 const configLink = userData.links[configIndex];
-    
-                await context.message.editText(`\`${configLink}\``, {
-                    parse_mode: 'markdown'
-                });
-    
+        
+                try {
+                    // Отправляем сообщение с конфигом и кнопкой "Back"
+                    await context.message.editText(`\`${configLink}\``, {
+                        reply_markup: keyboard.config,
+                        parse_mode: 'markdown'
+                    });
+                } catch (err) {
+                    console.error('Error displaying config:', err);
+                    await context.answerCallbackQuery({
+                        text: 'Error displaying config',
+                        show_alert: true
+                    });
+                }
+        
                 await context.answerCallbackQuery();
                 break;
             }

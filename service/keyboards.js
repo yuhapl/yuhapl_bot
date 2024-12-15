@@ -23,10 +23,10 @@ const isUserActive = async (userId) => {
         const { status } = response.data;
 
         if (status === 'active') {
-            log.isUserActiveTrue(userId);
+            log.isUserActive(userId, true);
             return true;
         } else {
-            log.isUserActiveFalse(userId);
+            log.isUserActive(userId, false);
             return false;
         }
     } catch (error) {
@@ -38,8 +38,8 @@ const isUserActive = async (userId) => {
 
 
 // Клавиатура для начального сообщения с условной кнопкой "Configs"
-export const startKeyboard = async (userId) => {
-	const keyboard = [
+export const start = async (userId) => {
+	const keymarkup = [
 		[
 			InlineKeyboard.textButton({
 				text: 'Settings',
@@ -50,19 +50,19 @@ export const startKeyboard = async (userId) => {
 
 	// Проверяем, является ли пользователь активным и добавляем кнопку "Configs"
 	if (await isUserActive(userId)) {
-		keyboard.push([
+		keymarkup.push([
 			InlineKeyboard.textButton({
 				text: 'Configs',
-				payload: 'configs'
+				payload: 'configList'
 			})
 		]);
 	}
 
-	return InlineKeyboard.keyboard(keyboard);
+	return InlineKeyboard.keyboard(keymarkup);
 };
 
 // Клавиатура для настроек
-export const settingsKeyboard = InlineKeyboard.keyboard([
+export const settings = InlineKeyboard.keyboard([
     [
         InlineKeyboard.textButton({
             text: 'Themes',
@@ -76,7 +76,7 @@ export const settingsKeyboard = InlineKeyboard.keyboard([
 ]);
 
 // Клавиатура после смены темы (если понадобится в будущем)
-export const backToStartKeyboard = InlineKeyboard.keyboard([
+export const backToStart = InlineKeyboard.keyboard([
     [
         InlineKeyboard.textButton({
             text: 'Settings',
@@ -85,9 +85,18 @@ export const backToStartKeyboard = InlineKeyboard.keyboard([
     ]
 ]);
 
+export const config = InlineKeyboard.keyboard([
+    [
+        InlineKeyboard.textButton({
+            text: 'Back to Configs',
+            payload: 'backToConfiList'
+        })
+    ]
+]);
+
 
 // Генерация клавиатуры для списка конфигов
-export const generateConfigKeyboard = (userConfigs) => {
+export const generateConfigList = (userConfigs) => {
     const keyboard = userConfigs.inbounds.vless.concat(
         userConfigs.inbounds.vmess,
         userConfigs.inbounds.trojan
@@ -102,7 +111,7 @@ export const generateConfigKeyboard = (userConfigs) => {
     keyboard.push([
         InlineKeyboard.textButton({
             text: 'Back',
-            payload: 'backToConfigs'
+            payload: 'backToStart'
         })
     ]);
 
