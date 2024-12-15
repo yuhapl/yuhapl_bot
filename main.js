@@ -80,8 +80,9 @@ telegram.updates.on('callback_query', async (context) => {
 
         case 'backToStart':
             try {
+                const keyboard = await startKeyboard(context.senderId); // Корректно вызываем функцию с userId
                 await context.message.editText('Start', {
-                    reply_markup: startKeyboard,
+                    reply_markup: keyboard, // Передаём результат вызова функции
                     parse_mode: 'markdown'
                 });
             } catch (err) {
@@ -121,8 +122,8 @@ telegram.updates.on('callback_query', async (context) => {
         log.startPolling(botUsername);
 
         // Получаем токен из API сервиса
-        const token = getAccessToken();
+        const token = setAccessToken();
     } catch (err) {
-        log.getAccessTokenError(err);
+        log.setAccessTokenError(err);
     }
 })();
