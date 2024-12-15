@@ -84,3 +84,27 @@ export const backToStartKeyboard = InlineKeyboard.keyboard([
         })
     ]
 ]);
+
+
+// Генерация клавиатуры для списка конфигов
+export const generateConfigKeyboard = (userConfigs) => {
+    const keyboard = userConfigs.inbounds.vless.concat(
+        userConfigs.inbounds.vmess,
+        userConfigs.inbounds.trojan
+    ).map((inbound, index) => [
+        InlineKeyboard.textButton({
+            text: inbound, // Название подключения
+            payload: `config_${index}` // Уникальный payload
+        })
+    ]);
+
+    // Добавляем кнопку возврата в главное меню
+    keyboard.push([
+        InlineKeyboard.textButton({
+            text: 'Back',
+            payload: 'backToConfigs'
+        })
+    ]);
+
+    return InlineKeyboard.keyboard(keyboard);
+};
