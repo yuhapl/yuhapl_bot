@@ -40,6 +40,8 @@ export const setAccessToken = async () => {
 // Функция для получения текущего токена
 export const getAccessToken = () => accessToken;
 
-// Обновляем токен каждый час
-setAccessToken();
-setInterval(setAccessToken, 60 * 60 * 1000); // 1 час
+// Обновление API токена
+export const initializeAccessToken = async () => {
+    await setAccessToken(); // Запрашиваем токен один раз при старте
+    setInterval(setAccessToken, 60 * 60 * 1000); // Обновляем токен каждый час
+};

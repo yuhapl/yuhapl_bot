@@ -7,32 +7,35 @@ import { getAccessToken } from './apiService.js';
 
 // Функция для проверки, активен ли пользователь
 const isUserActive = async (userId) => {
-	try {
-		const token = getAccessToken(); // Получаем токен
-		if (!token) {
-            const err = ("isUserActve no access token available")
-			log.getAccessTokenError(err)
-		}
+    try {
+        const token = getAccessToken();
 
-		// Выполняем запрос к API для получения данных о пользователе
-		const response = await axios.get(`https://sub.yuha.pl/api/user/${userId}`, {
-			headers: {
-				'accept': 'application/json',
-				'Authorization': `Bearer ${token}`, // Передаем токен в заголовке
-			},
-		});
+        if (!token) {
+            const err = 'No access token available';
+            log.setAccessTokenError(err);
+            return false;
+        }
 
-		const { status } = response.data; // Извлекаем статус пользователя из ответа
+        const response = await axios.get(`https://sub.yuha.pl/api/user/${userId}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
 
-		// Проверяем, активен ли пользователь
-		return status === 'active'; // Возвращаем true, если статус "active", иначе false
-        log.isUserActiveTrue(userId);
-	} catch (err) {
-		log.isUserActiveError(err, userId);
-        log.isUserActiveFalse(userId);
-		return false; // Возвращаем false в случае ошибки
-	}
+        const { status } = response.data;
+
+        if (status === 'active') {
+            log.isUserActiveTrue(userId);
+            return true;
+        } else {
+            log.isUserActiveFalse(userId);
+            return false;
+        }
+    } catch (error) {
+        const statusCode = error.response ? error.response.status : 'No Response';
+        log.isUserActiveError(error.message, userId);
+        return false;
+    }
 };
+
 
 // Клавиатура для начального сообщения с условной кнопкой "Configs"
 export const startKeyboard = async (userId) => {

@@ -11,7 +11,7 @@ import {
 } from './service/userService.js'; //  Импорт сервисов
 import mongoose from 'mongoose';
 import { startKeyboard, settingsKeyboard, backToStartKeyboard } from './service/keyboards.js'; //  Импорт клавиатур
-import { getAccessToken } from './service/apiService.js'; // Импорт API сервиса
+import { initializeAccessToken } from './service/apiService.js'; // Импорт API сервиса
 
 // Загружаем переменные окружения из .env файла
 dotenv.config();
@@ -122,7 +122,7 @@ telegram.updates.on('callback_query', async (context) => {
         log.startPolling(botUsername);
 
         // Получаем токен из API сервиса
-        const token = setAccessToken();
+        const token = initializeAccessToken ();
     } catch (err) {
         log.setAccessTokenError(err);
     }

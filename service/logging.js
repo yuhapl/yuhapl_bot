@@ -1,6 +1,5 @@
 // /service/logging.js (не удалять)
 
-import { get } from 'http';
 import { getCurrentTime } from './timer.js';
 
 export const Action = (context) => {
@@ -83,7 +82,7 @@ export const isUserActiveError = (err, userId) => {
 
 export const isUserActiveTrue = (err, userId) => {
     const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: User status check: true:`)
+    console.log(`[${time}] ${userId}: User status check: true`)
 }
 
 export const isUserActiveFalse = (err, userId) => {
