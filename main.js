@@ -118,16 +118,11 @@ telegram.updates.on('callback_query', async (context) => {
         const botUsername = botInfo.username;
 
         await telegram.updates.startPolling();
-        log.StartPolling(botUsername);
+        log.startPolling(botUsername);
 
         // Получаем токен из API сервиса
         const token = getAccessToken();
-        if (token) {
-            log.TokenUpdate(token);
-        } else {
-            log.TokenUpdateError(err);
-        }
     } catch (err) {
-        log.TokenUpdateError(err);
+        log.getAccessTokenError(err);
     }
 })();
