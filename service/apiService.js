@@ -6,11 +6,11 @@ import * as log from './logging.js'
 
 dotenv.config();
 
-const API_URL = 'https://connect.yuha.pl:8000/api/admin/token';
+const API_URL = 'https://sub.yuha.pl/api/admin/token';
 let accessToken = null;
 
-// Функция для получения токена
-export const fetchAccessToken = async () => {
+// Функция для обновления токена
+export const setAccessToken = async () => {
     try {
         const response = await axios.post(
             API_URL,
@@ -30,16 +30,18 @@ export const fetchAccessToken = async () => {
             }
         );
         accessToken = response.data.access_token;
-        log.TokenUpdate(accessToken);
+        log.setAccessToken(accessToken);
     } catch (error) {
         const err = error.message
-        log.TokenUpdateError(err);
+        log.setAccessTokenError(err);
     }
 };
 
 // Функция для получения текущего токена
 export const getAccessToken = () => accessToken;
 
-// Обновляем токен каждый час
-fetchAccessToken();
-setInterval(fetchAccessToken, 60 * 60 * 1000); // 1 час
+// Обновление API токена
+export const initializeAccessToken = async () => {
+    await setAccessToken(); // Запрашиваем токен один раз при старте
+    setInterval(setAccessToken, 60 * 60 * 1000); // Обновляем токен каждый час
+};

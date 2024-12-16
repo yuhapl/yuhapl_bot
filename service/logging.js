@@ -1,6 +1,5 @@
 // /service/logging.js (не удалять)
 
-import { get } from 'http';
 import { getCurrentTime } from './timer.js';
 
 export const Action = (context) => {
@@ -46,27 +45,42 @@ export const ToggleUserTheme = (userId, newTheme) => {
     console.log(`[${time}] ${userId}: User theme switched to "${newTheme}".`);
 };
 
-export const TokenUpdate = (token) => {
+export const setAccessToken = (token) => {
     const time = getCurrentTime();
-    console.log(`[${time}] API token updated: ${token}`)
+    console.log(`[${time}]: API token setted: ${token}.`)
 }
 
-export const TokenUpdateError = (err) => {
+export const setAccessTokenError = (err) => {
     const time = getCurrentTime();
-    console.log(`[${time}] Error of updating API token:`, err)
+    console.log(`[${time}]: Error of setting API token: ${err}.`)
 }
 
-export const StartPolling = (botUsername) => {
+export const getAccessTokenError = (err) => {
     const time = getCurrentTime();
-    console.log(`[${time}] Bot started: @${botUsername}`)
+    console.log(`[${time}]: Error of getting API token: ${err}.`)
+}
+
+export const startPolling = (botUsername) => {
+    const time = getCurrentTime();
+    console.log(`[${time}]: Bot started: @${botUsername}.`)
 }
 
 export const databaseConnect = () => {
     const time = getCurrentTime();
-    console.log(`[${time}] MongoDB connected`)
+    console.log(`[${time}]: MongoDB connected.`)
 }
 
 export const databaseConnectError = (err) => {
     const time = getCurrentTime();
-    console.log(`[${time}] Error connecting to MongoDB:`, err)
+    console.log(`[${time}]: Error connecting to MongoDB: ${err}.`)
+}
+
+export const isUserActiveError = (err, userId) => {
+    const time = getCurrentTime();
+    console.log(`[${time}] ${userId}: Error checking user activity status: ${err}.`)
+}
+
+export const isUserActive = (userId, status) => {
+    const time = getCurrentTime();
+    console.log(`[${time}] ${userId}: User activity status check: ${status}.`)
 }
