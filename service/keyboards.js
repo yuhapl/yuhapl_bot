@@ -36,29 +36,27 @@ const isUserActive = async (userId) => {
     }
 };
 
-
 // Клавиатура для начального сообщения с условной кнопкой "Configs"
 export const start = async (userId) => {
-	const keymarkup = [
-		[
-			InlineKeyboard.textButton({
-				text: 'Settings',
-				payload: 'settings'
-			})
-		]
-	];
+    const keymarkup = [];
 
-	// Проверяем, является ли пользователь активным и добавляем кнопку "Configs"
-	if (await isUserActive(userId)) {
-		keymarkup.push([
-			InlineKeyboard.textButton({
-				text: 'Configs',
-				payload: 'configList'
-			})
-		]);
-	}
+    if (await isUserActive(userId)) {
+        keymarkup.push([
+            InlineKeyboard.textButton({
+                text: 'Configs',
+                payload: 'configList'
+            })
+        ]);
+    }
 
-	return InlineKeyboard.keyboard(keymarkup);
+    keymarkup.push([
+        InlineKeyboard.textButton({
+            text: 'Settings',
+            payload: 'settings'
+        })
+    ]);
+
+    return InlineKeyboard.keyboard(keymarkup);
 };
 
 // Клавиатура для настроек
@@ -68,12 +66,15 @@ export const settings = InlineKeyboard.keyboard([
             text: 'Themes',
             payload: 'changeTheme'
         }),
+    ],
+    [
         InlineKeyboard.textButton({
             text: 'Back',
             payload: 'backToStart'
         })
     ]
 ]);
+
 
 // Клавиатура после смены темы (если понадобится в будущем)
 export const backToStart = InlineKeyboard.keyboard([
@@ -97,15 +98,40 @@ export const config = InlineKeyboard.keyboard([
 
 // Генерация клавиатуры для списка конфигов
 export const generateConfigList = (userConfigs) => {
-    const keyboard = userConfigs.inbounds.vless.concat(
-        userConfigs.inbounds.vmess,
-        userConfigs.inbounds.trojan
-    ).map((inbound, index) => [
-        InlineKeyboard.textButton({
-            text: inbound, // Название подключения
-            payload: `config_${index}` // Уникальный payload
-        })
-    ]);
+    const keyboard = [];
+
+    if (userConfigs.inbounds.vless) {
+        userConfigs.inbounds.vless.forEach((inbound, index) => {
+            keyboard.push([
+                InlineKeyboard.textButton({
+                    text: `${inbound}`,
+                    payload: `config_vless_${index}`,
+                })
+            ]);
+        });
+    }
+
+    if (userConfigs.inbounds.vmess) {
+        userConfigs.inbounds.vmess.forEach((inbound, index) => {
+            keyboard.push([
+                InlineKeyboard.textButton({
+                    text: `${inbound}`,
+                    payload: `config_vmess_${index}`,
+                })
+            ]);
+        });
+    }
+
+    if (userConfigs.inbounds.trojan) {
+        userConfigs.inbounds.trojan.forEach((inbound, index) => {
+            keyboard.push([
+                InlineKeyboard.textButton({
+                    text: `${inbound}`,
+                    payload: `config_trojan_${index}`,
+                })
+            ]);
+        });
+    }
 
     // Добавляем кнопку возврата в главное меню
     keyboard.push([

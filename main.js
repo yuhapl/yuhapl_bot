@@ -81,7 +81,7 @@ telegram.updates.on('callback_query', async (context) => {
             await context.answerCallbackQuery();
             break;
 
-
+            
         case 'backToStart':
             try {
                 await context.message.editText('Start', {
@@ -134,20 +134,37 @@ telegram.updates.on('callback_query', async (context) => {
         }
 
         // Обработка выбора конкретного конфига
+
         default:
             if (action.startsWith('config_')) {
                 const userData = await getUserData(context.senderId);
+
                 if (!userData) {
                     await context.answerCallbackQuery({
                         text: 'Error retrieving config',
                         show_alert: true
                     });
+                
                     return;
                 }
-        
-                const configIndex = parseInt(action.split('_')[1], 10);
-                const configLink = userData.links[configIndex];
-        
+
+                // Парсинг action для получения типа протокола и индекса
+                const [, protocol, index] = action.split('_'); // Пример: config_vless_0 -> [config, vless, 0]
+                const configIndex = parseInt(index, 10);
+
+                // Получение ссылки по протоколу и индексу
+                const configLinks = userData.links.filter(link => link.toLowerCase().includes(protocol));
+                const configLink = configLinks[configIndex]; // Индексация по фильтрованному массиву
+
+                if (!configLink) {
+                    await context.answerCallbackQuery({
+                    text: 'Config not found',
+                    show_alert: true
+                    });
+                    
+                    return;
+                }   
+
                 try {
                     // Отправляем сообщение с конфигом и кнопкой "Back"
                     await context.message.editText(`\`${configLink}\``, {
@@ -161,7 +178,7 @@ telegram.updates.on('callback_query', async (context) => {
                         show_alert: true
                     });
                 }
-        
+
                 await context.answerCallbackQuery();
                 break;
             }
