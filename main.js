@@ -68,8 +68,9 @@ telegram.updates.on('callback_query', async (context) => {
         case 'changeTheme':
             try {
                 const newTheme = await toggleUserTheme(context.senderId);
-                await context.message.editText(`Theme successfully switched to: ${newTheme}`, {
-                    reply_markup: keyboard.backToStart
+                await context.answerCallbackQuery({
+                    text: `Theme successfully switched to: ${newTheme}`,
+                    show_alert: true
                 });
             } catch (err) {
                 console.error('Error while switching theme:', err);
@@ -78,10 +79,8 @@ telegram.updates.on('callback_query', async (context) => {
                     show_alert: true
                 });
             }
-            await context.answerCallbackQuery();
             break;
 
-            
         case 'backToStart':
             try {
                 await context.message.editText('Start', {
