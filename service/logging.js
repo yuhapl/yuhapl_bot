@@ -45,6 +45,11 @@ export const ToggleUserTheme = (userId, newTheme) => {
     console.log(`[${time}] ${userId}: User theme switched to "${newTheme}".`);
 };
 
+export const ToggleUserLanguage = (userId, newLanguage) => {
+    const time = getCurrentTime();
+    console.log(`[${time}] ${userId}: User language switched to "${newLanguage}".`);
+};
+
 export const setAccessToken = (token) => {
     const time = getCurrentTime();
     console.log(`[${time}]: API token setted: ${token}.`)

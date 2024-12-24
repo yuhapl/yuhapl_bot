@@ -8,7 +8,8 @@ import {
     findOrCreateUser,
     incrementMessageCount,
     incrementInlineInteractionCount,
-    toggleUserTheme
+    toggleUserTheme,
+    toggleUserLanguage
 } from './service/userService.js';
 import mongoose from 'mongoose';
 import * as keyboard from './service/keyboards.js';
@@ -37,12 +38,41 @@ telegram.updates.on('message', async (context) => {
     }
 });
 
+// Функция для формирования стартового сообщения
+const generateStartMessage = (userId, userData) => {
+    // Если данные отсутствуют, пользователь считается неактивным
+    const isActive = userData?.status === 'active';
+    const expireDate = userData?.expire
+        ? new Date(userData.expire * 1000).toLocaleDateString('ru-RU')
+        : 'Неизвестно';
+
+    let trafficInfo = '';
+    if (isActive) {
+        const remainingTraffic = ((userData.data_limit - userData.used_traffic) / (1024 ** 3)).toFixed(1); // ГБ
+        const totalTraffic = (userData.data_limit / (1024 ** 3)).toFixed(0); // ГБ
+        trafficInfo = `\nТрафик: ${remainingTraffic}/${totalTraffic} ГБ`;
+    }
+
+    const status = isActive ? `до ${expireDate}` : 'Не активен';
+
+    // Формируем сообщение
+    return `ID: ${userId}\nСтатус: ${status}${trafficInfo}`;
+};
+
 // Функция для отправки стартового сообщения
 const sendStartMessage = async (context) => {
-    await context.send('Start', {
-        reply_markup: await keyboard.start(context.senderId),  // Используем асинхронный вызов для startKeyboard
-        parse_mode: 'markdown'
-    });
+    try {
+        const userData = await getUserData(context.senderId);
+        const message = generateStartMessage(context.senderId, userData);
+
+        await context.send(message, {
+            reply_markup: await keyboard.start(context.senderId),
+            parse_mode: 'markdown'
+        });
+    } catch (error) {
+        console.error('Error sending start message:', error);
+        await context.send('Произошла ошибка при загрузке данных пользователя.');
+    }
 };
 
 // Обработчик инлайн-кнопок
@@ -81,22 +111,40 @@ telegram.updates.on('callback_query', async (context) => {
             }
             break;
 
+        case 'changeLanguage':
+            try {
+                const newLanguage = await toggleUserLanguage(context.senderId);
+                await context.answerCallbackQuery({
+                    text: `Language successfully switched to: ${newLanguage}`,
+                    show_alert: true
+                });
+            } catch (err) {
+                console.error('Error while switching language', err);
+                await context.answerCallbackQuery({
+                    text: 'Error while switching language',
+                    show_alert: true
+                });
+            }
+            break
+
         case 'backToStart':
             try {
-                await context.message.editText('Start', {
+                const userData = await getUserData(context.senderId);
+                const message = generateStartMessage(context.senderId, userData);
+
+                await context.message.editText(message, {
                     reply_markup: await keyboard.start(context.senderId),
                     parse_mode: 'markdown'
                 });
             } catch (err) {
                 console.error('Error while returning to start screen:', err);
                 await context.answerCallbackQuery({
-                    text: 'Error while returning to start screen',
+                    text: 'Произошла ошибка при возврате в главное меню.',
                     show_alert: true
-                }); 
+                });
             }
             await context.answerCallbackQuery();
             break;
-
 
         case 'configList': {
             const userData = await getUserData(context.senderId);
@@ -129,11 +177,38 @@ telegram.updates.on('callback_query', async (context) => {
             });
         
             await context.answerCallbackQuery();
-            break;
+        break;
         }
 
-        // Обработка выбора конкретного конфига
-
+        case 'refreshStatus':
+            try {
+                const userData = await getUserData(context.senderId);
+                const newMessage = generateStartMessage(context.senderId, userData);
+                const currentMessage = context.message.text;
+        
+                // Проверяем, отличается ли новое сообщение от текущего
+                if (currentMessage !== newMessage) {
+                    // Обновляем сообщение только если оно изменилось
+                    await context.message.editText(newMessage, {
+                        reply_markup: await keyboard.start(context.senderId),
+                        parse_mode: 'markdown'
+                    });
+                } else {
+                    // Уведомляем пользователя, что изменений нет
+                    await context.answerCallbackQuery({
+                        text: 'Нет изменений',
+                        show_alert: false // Отображение уведомления в нижней части экрана
+                    });
+                }
+            } catch (err) {
+                console.error('Error refreshing status:', err);
+                await context.answerCallbackQuery({
+                    text: 'Ошибка при обновлении информации. Попробуйте позже',
+                    show_alert: true
+                });
+            }
+            break;
+                
         default:
             if (action.startsWith('config_')) {
                 const userData = await getUserData(context.senderId);

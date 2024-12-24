@@ -6,7 +6,7 @@ import * as log from './logging.js'
 import { getAccessToken } from './apiService.js';
 
 // Функция для проверки, активен ли пользователь
-const isUserActive = async (userId) => {
+export const isUserActive = async (userId) => {
     try {
         const token = getAccessToken();
 
@@ -54,7 +54,15 @@ export const start = async (userId) => {
             text: 'Settings',
             payload: 'settings'
         })
+    ],
+    [
+        InlineKeyboard.textButton({
+            text: 'Update',
+            payload: 'refreshStatus'
+        })
     ]);
+
+
 
     return InlineKeyboard.keyboard(keymarkup);
 };
@@ -66,6 +74,10 @@ export const settings = InlineKeyboard.keyboard([
             text: 'Themes',
             payload: 'changeTheme'
         }),
+        InlineKeyboard.textButton({
+            text: 'Language',
+            payload: 'changeLanguage'
+        })
     ],
     [
         InlineKeyboard.textButton({
