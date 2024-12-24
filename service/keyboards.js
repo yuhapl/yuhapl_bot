@@ -43,7 +43,7 @@ export const start = async (userId) => {
     if (await isUserActive(userId)) {
         keymarkup.push([
             InlineKeyboard.textButton({
-                text: 'Configs',
+                text: '🌐 Подключения',
                 payload: 'configList'
             })
         ]);
@@ -51,18 +51,10 @@ export const start = async (userId) => {
 
     keymarkup.push([
         InlineKeyboard.textButton({
-            text: 'Settings',
+            text: '⚙️ Настройки',
             payload: 'settings'
         })
-    ],
-    [
-        InlineKeyboard.textButton({
-            text: 'Update',
-            payload: 'refreshStatus'
-        })
     ]);
-
-
 
     return InlineKeyboard.keyboard(keymarkup);
 };
@@ -71,28 +63,26 @@ export const start = async (userId) => {
 export const settings = InlineKeyboard.keyboard([
     [
         InlineKeyboard.textButton({
-            text: 'Themes',
+            text: 'Тема',
             payload: 'changeTheme'
         }),
         InlineKeyboard.textButton({
-            text: 'Language',
+            text: 'Язык',
             payload: 'changeLanguage'
         })
     ],
     [
         InlineKeyboard.textButton({
-            text: 'Back',
+            text: 'Назад',
             payload: 'backToStart'
         })
     ]
 ]);
 
-
-// Клавиатура после смены темы (если понадобится в будущем)
 export const backToStart = InlineKeyboard.keyboard([
     [
         InlineKeyboard.textButton({
-            text: 'Settings',
+            text: 'Настройки',
             payload: 'settings'
         })
     ]
@@ -101,7 +91,7 @@ export const backToStart = InlineKeyboard.keyboard([
 export const config = InlineKeyboard.keyboard([
     [
         InlineKeyboard.textButton({
-            text: 'Back to Configs',
+            text: 'Назад',
             payload: 'backToConfiList'
         })
     ]
@@ -145,10 +135,9 @@ export const generateConfigList = (userConfigs) => {
         });
     }
 
-    // Добавляем кнопку возврата в главное меню
     keyboard.push([
         InlineKeyboard.textButton({
-            text: 'Back',
+            text: 'Назад',
             payload: 'backToStart'
         })
     ]);

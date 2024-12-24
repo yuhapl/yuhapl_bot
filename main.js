@@ -40,23 +40,21 @@ telegram.updates.on('message', async (context) => {
 
 // Функция для формирования стартового сообщения
 const generateStartMessage = (userId, userData) => {
-    // Если данные отсутствуют, пользователь считается неактивным
+
     const isActive = userData?.status === 'active';
     const expireDate = userData?.expire
         ? new Date(userData.expire * 1000).toLocaleDateString('ru-RU')
-        : 'Неизвестно';
+        : 'Статус: ∞';  // Бесконечность, если expire null
 
-    let trafficInfo = '';
-    if (isActive) {
-        const remainingTraffic = ((userData.data_limit - userData.used_traffic) / (1024 ** 3)).toFixed(1); // ГБ
-        const totalTraffic = (userData.data_limit / (1024 ** 3)).toFixed(0); // ГБ
-        trafficInfo = `\nТрафик: ${remainingTraffic}/${totalTraffic} ГБ`;
-    }
+    const trafficInfo = isActive ? (
+        userData.data_limit === null
+            ? `Трафик: ∞ ГБ`
+            : `Трафик: ${((userData.data_limit - userData.used_traffic) / (1024 ** 3)).toFixed(1)}/${(userData.data_limit / (1024 ** 3)).toFixed(0)} ГБ`
+    ) : '';
 
     const status = isActive ? `до ${expireDate}` : 'Не активен';
 
-    // Формируем сообщение
-    return `ID: ${userId}\nСтатус: ${status}${trafficInfo}`;
+    return `ID: ${userId}\nСтатус: ${status}\n${trafficInfo}`;
 };
 
 // Функция для отправки стартового сообщения
@@ -148,8 +146,7 @@ telegram.updates.on('callback_query', async (context) => {
 
         case 'configList': {
             const userData = await getUserData(context.senderId);
-            
-            // Генерация клавиатуры с конфигами
+
             await context.message.editText('Choose a config:', {
                 reply_markup: keyboard.generateConfigList(userData),
                 parse_mode: 'markdown'
@@ -159,7 +156,6 @@ telegram.updates.on('callback_query', async (context) => {
             break;
         }
         
-        // Возврат к списку конфигов
         case 'backToConfiList': {
             const userData = await getUserData(context.senderId);
     
@@ -180,35 +176,6 @@ telegram.updates.on('callback_query', async (context) => {
         break;
         }
 
-        case 'refreshStatus':
-            try {
-                const userData = await getUserData(context.senderId);
-                const newMessage = generateStartMessage(context.senderId, userData);
-                const currentMessage = context.message.text;
-        
-                // Проверяем, отличается ли новое сообщение от текущего
-                if (currentMessage !== newMessage) {
-                    // Обновляем сообщение только если оно изменилось
-                    await context.message.editText(newMessage, {
-                        reply_markup: await keyboard.start(context.senderId),
-                        parse_mode: 'markdown'
-                    });
-                } else {
-                    // Уведомляем пользователя, что изменений нет
-                    await context.answerCallbackQuery({
-                        text: 'Нет изменений',
-                        show_alert: false // Отображение уведомления в нижней части экрана
-                    });
-                }
-            } catch (err) {
-                console.error('Error refreshing status:', err);
-                await context.answerCallbackQuery({
-                    text: 'Ошибка при обновлении информации. Попробуйте позже',
-                    show_alert: true
-                });
-            }
-            break;
-                
         default:
             if (action.startsWith('config_')) {
                 const userData = await getUserData(context.senderId);
@@ -240,7 +207,6 @@ telegram.updates.on('callback_query', async (context) => {
                 }   
 
                 try {
-                    // Отправляем сообщение с конфигом и кнопкой "Back"
                     await context.message.editText(`\`${configLink}\``, {
                         reply_markup: keyboard.config,
                         parse_mode: 'markdown'
@@ -259,15 +225,9 @@ telegram.updates.on('callback_query', async (context) => {
     }
 });
 
-/**
- * Асинхронная функция для получения данных пользователя
- * @param {Number} userId - ID пользователя
- * @returns {Object|null} - Данные пользователя или null в случае ошибки
- */
 const getUserData = async (userId) => {
     try {
         const token = getAccessToken();
-//        console.log(token)
         if (!token) throw new Error('No access token available');
 
         const response = await axios.get(`https://sub.yuha.pl/api/user/${userId}`, {
@@ -281,7 +241,6 @@ const getUserData = async (userId) => {
     }
 };
 
-// Запуск бота и получение информации о нём
 (async () => {
     try {
         const botInfo = await telegram.api.getMe();
@@ -289,8 +248,6 @@ const getUserData = async (userId) => {
 
         await telegram.updates.startPolling();
         log.startPolling(botUsername);
-
-        // Получаем токен из API сервиса
         const token = initializeAccessToken ();
     } catch (err) {
         log.setAccessTokenError(err);
