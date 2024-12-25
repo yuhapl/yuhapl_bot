@@ -6,7 +6,7 @@ import * as log from './logging.js'
 
 dotenv.config();
 
-const API_URL = 'https://sub.yuha.pl/api/admin/token';
+const API_URL = `${process.env.API_LINK}/api/admin/token`;
 let accessToken = null;
 
 // Функция для обновления токена

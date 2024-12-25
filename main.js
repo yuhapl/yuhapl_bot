@@ -565,7 +565,7 @@ const getUserData = async (userId) => {
         const token = getAccessToken();
         if (!token) throw new Error('No access token available');
 
-        const response = await axios.get(`https://sub.yuha.pl/api/user/${userId}`, {
+        const response = await axios.get(`${process.env.API_LINK}/api/user/${userId}`, {
             headers: { 'Authorization': `Bearer ${token}` },
         });
 

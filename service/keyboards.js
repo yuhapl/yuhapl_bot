@@ -2,6 +2,7 @@
 
 import { InlineKeyboard } from 'puregram';
 import axios from 'axios';
+import dotenv from 'dotenv';
 import * as log from './logging.js'
 import { getAccessToken } from './apiService.js';
 
@@ -16,7 +17,7 @@ export const isUserActive = async (userId) => {
             return false;
         }
 
-        const response = await axios.get(`https://sub.yuha.pl/api/user/${userId}`, {
+        const response = await axios.get(`${process.env.API_LINK}/api/user/${userId}`, {
             headers: { 'Authorization': `Bearer ${token}` },
         });
 
