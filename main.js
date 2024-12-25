@@ -278,10 +278,98 @@ telegram.updates.on('callback_query', async (context) => {
                     text: 'Произошла ошибка при загрузке списка конфигов.',
                     show_alert: false
                 });
-            }
-            break;
+            } break;
         }
-                
+              
+        case 'config_auto': {
+            const userData = await getUserData(context.senderId);
+            if (!userData || !userData.subscription_url) {
+                await context.answerCallbackQuery({
+                    text: 'Не удалось получить subscription_url',
+                    show_alert: false
+                });
+                return;
+            }
+        
+            const configLink = userData.subscription_url;
+            const configHash = generateHash(configLink);
+            const qrCodePath = path.join(cacheQrDir, `${configHash}.png`);
+        
+            if (fs.existsSync(qrCodePath)) {
+                // Отправка существующего QR-кода
+                if (context.message.photo || context.message.document) {
+                    await context.message.editMessageMedia({
+                        type: 'photo',
+                        media: MediaSource.path(qrCodePath),
+                        caption: `\`\`\`${configLink}\`\`\``,
+                        parse_mode: 'markdown'
+                    }, {
+                        reply_markup: keyboard.config
+                    });
+                } else if (context.message.text) {
+                    await context.message.editText(`\`\`\`${configLink}\`\`\``, {
+                        reply_markup: keyboard.config,
+                        parse_mode: 'markdown'
+                    });
+                } else {
+                    await context.sendPhoto(
+                        MediaSource.path(qrCodePath),
+                        {
+                            caption: `\`\`\`${configLink}\`\`\``,
+                            reply_markup: keyboard.config,
+                            parse_mode: 'markdown'
+                        }
+                    );
+                }
+            } else {
+                try {
+                    // Опции для настройки цветов и разрешения QR-кода
+                    const qrOptions = {
+                        color: {
+                            dark: '#474747',
+                            light: '#E8E8E8'
+                        },
+                        width: 720
+                    };
+
+                    // Генерация нового QR-кода с опциями
+                    await QRCode.toFile(qrCodePath, configLink, qrOptions);
+
+                    // Отправка нового QR-кода
+                    if (context.message.photo || context.message.document) {
+                        await context.message.editMessageMedia({
+                            type: 'photo',
+                            media: MediaSource.path(qrCodePath),
+                            caption: `\`\`\`${configLink}\`\`\``,
+                            parse_mode: 'markdown'
+                        }, {
+                            reply_markup: keyboard.config
+                        });
+                    } else if (context.message.text) {
+                        await context.message.editText(`\`${configLink}\``, {
+                            reply_markup: keyboard.config,
+                            parse_mode: 'markdown'
+                        });
+                    } else {
+                        await context.sendPhoto(
+                            MediaSource.path(qrCodePath),
+                            {
+                                caption: `\`\`\`${configLink}\`\`\``,
+                                reply_markup: keyboard.config,
+                                parse_mode: 'markdown'
+                            }
+                        );
+                    }
+                } catch (err) {
+                    console.error('Error displaying config:', err);
+                    await context.answerCallbackQuery({
+                        text: 'Error displaying config',
+                        show_alert: false
+                    });
+                }
+            } break;
+        }
+
         case 'backToConfiList': {
             const userData = await getUserData(context.senderId);
     

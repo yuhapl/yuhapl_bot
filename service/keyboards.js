@@ -102,6 +102,14 @@ export const config = InlineKeyboard.keyboard([
 export const generateConfigList = (userConfigs) => {
     const keyboard = [];
 
+    // Добавляем кнопку "Авто"
+    keyboard.push([
+        InlineKeyboard.textButton({
+            text: 'Авто',
+            payload: 'config_auto'
+        })
+    ]);
+
     if (userConfigs.inbounds.vless) {
         userConfigs.inbounds.vless.forEach((inbound, index) => {
             keyboard.push([
@@ -112,7 +120,7 @@ export const generateConfigList = (userConfigs) => {
             ]);
         });
     }
-
+  
     if (userConfigs.inbounds.vmess) {
         userConfigs.inbounds.vmess.forEach((inbound, index) => {
             keyboard.push([
