@@ -97,9 +97,9 @@ function generateHash(data) {
 }
 
 // Создание директории, если она не существует
-const cacheDir = './cache';
-if (!fs.existsSync(cacheDir)) {
-    fs.mkdirSync(cacheDir);
+const cacheQrDir = './cache/qr';
+if (!fs.existsSync(cacheQrDir)) {
+    fs.mkdirSync(cacheQrDir, { recursive: true });
 }
 
 // Обработчик инлайн-кнопок
@@ -332,7 +332,7 @@ telegram.updates.on('callback_query', async (context) => {
 
                 // Генерация хэша для конфигурации
                 const configHash = generateHash(configLink);
-                const qrCodePath = path.join(cacheDir, `qr_${configHash}.png`);
+                const qrCodePath = path.join(cacheQrDir, `qr_${configHash}.png`);
 
                 // Проверка, существует ли уже QR-код
                 if (fs.existsSync(qrCodePath)) {
@@ -433,4 +433,4 @@ const getUserData = async (userId) => {
     } catch (err) {
         log.setAccessTokenError(err);
     }
-})();
+});
