@@ -47,8 +47,8 @@ const generateStartMessage = (userId, userData) => {
 
     const isActive = userData?.status === 'active';
     const expireDate = userData?.expire
-        ? new Date(userData.expire * 1000).toLocaleDateString('ru-RU')
-        : 'Статус: ∞';  // Бесконечность, если expire null
+        ? `до ${new Date(userData.expire * 1000).toLocaleDateString('ru-RU')}`
+        : '∞';
 
     const trafficInfo = isActive ? (
         userData.data_limit === null
@@ -56,9 +56,9 @@ const generateStartMessage = (userId, userData) => {
             : `Трафик: ${((userData.data_limit - userData.used_traffic) / (1024 ** 3)).toFixed(1)}/${(userData.data_limit / (1024 ** 3)).toFixed(0)} ГБ`
     ) : '';
 
-    const status = isActive ? `до ${expireDate}` : 'Не активен';
+    const status = isActive ? `Статус: ${expireDate}` : 'Не активен';
 
-    return `ID: ${userId}\nСтатус: ${status}\n${trafficInfo}`;
+    return `#️⃣ ID: ${userId}\n📅 ${status}\n📶 ${trafficInfo}`;
 };
 
 // Функция для отправки стартового сообщения
@@ -264,7 +264,7 @@ telegram.updates.on('callback_query', async (context) => {
                         reply_markup: keyboard.generateConfigList(userData)
                     });
                 } else {
-                    await context.message.editText('Choose a config:', {
+                    await context.message.editText('', {
                         reply_markup: keyboard.generateConfigList(userData),
                         parse_mode: 'markdown'
                     });
