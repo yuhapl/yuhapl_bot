@@ -433,4 +433,4 @@ const getUserData = async (userId) => {
     } catch (err) {
         log.setAccessTokenError(err);
     }
-});
+})();
