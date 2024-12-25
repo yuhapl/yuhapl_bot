@@ -144,7 +144,7 @@ telegram.updates.on('callback_query', async (context) => {
         
                 await context.answerCallbackQuery({
                     text: 'Произошла ошибка при открытии настроек.',
-                    show_alert: true
+                    show_alert: false
                 });
             }
             break;
@@ -152,15 +152,33 @@ telegram.updates.on('callback_query', async (context) => {
         case 'changeTheme':
             try {
                 const newTheme = await toggleUserTheme(context.senderId);
+                const imagePath = `./themes/${newTheme}/settings.png`;
+
+                if (context.message.photo || context.message.document) {
+                    await context.message.editMessageMedia({
+                        type: 'photo',
+                        media: MediaSource.path(imagePath),
+                        caption: '',
+                        parse_mode: 'markdown'
+                    }, {
+                        reply_markup: keyboard.settings
+                    });
+                } else {
+                    await context.message.editText('Settings updated', {
+                        reply_markup: keyboard.settings,
+                        parse_mode: 'markdown'
+                    });
+                }
+
                 await context.answerCallbackQuery({
-                    text: `Theme successfully switched to: ${newTheme}`,
-                    show_alert: true
+                    text: `Тема изменена: ${newTheme}`,
+                    show_alert: false
                 });
             } catch (err) {
                 console.error('Error while switching theme:', err);
                 await context.answerCallbackQuery({
                     text: 'Error while switching theme',
-                    show_alert: true
+                    show_alert: false
                 });
             }
             break;
@@ -169,14 +187,14 @@ telegram.updates.on('callback_query', async (context) => {
             try {
                 const newLanguage = await toggleUserLanguage(context.senderId);
                 await context.answerCallbackQuery({
-                    text: `Language successfully switched to: ${newLanguage}`,
-                    show_alert: true
+                    text: `Функция в разработке.\nЯзык изменён ${newLanguage}`,
+                    show_alert: false
                 });
             } catch (err) {
                 console.error('Error while switching language', err);
                 await context.answerCallbackQuery({
                     text: 'Error while switching language',
-                    show_alert: true
+                    show_alert: false
                 });
             }
             break
@@ -220,7 +238,7 @@ telegram.updates.on('callback_query', async (context) => {
         
                 await context.answerCallbackQuery({
                     text: 'Произошла ошибка при возврате в главное меню.',
-                    show_alert: true
+                    show_alert: false
                 });
             }
             break;
@@ -258,7 +276,7 @@ telegram.updates.on('callback_query', async (context) => {
         
                 await context.answerCallbackQuery({
                     text: 'Произошла ошибка при загрузке списка конфигов.',
-                    show_alert: true
+                    show_alert: false
                 });
             }
             break;
@@ -270,7 +288,7 @@ telegram.updates.on('callback_query', async (context) => {
             if (!userData) {
                 await context.answerCallbackQuery({
                     text: 'Error retrieving configs',
-                    show_alert: true
+                    show_alert: false
                 });
                 return;
             }
@@ -307,7 +325,7 @@ telegram.updates.on('callback_query', async (context) => {
                 if (!userData) {
                     await context.answerCallbackQuery({
                         text: 'Error retrieving config',
-                        show_alert: true
+                        show_alert: false
                     });
                 
                     return;
@@ -324,7 +342,7 @@ telegram.updates.on('callback_query', async (context) => {
                 if (!configLink) {
                     await context.answerCallbackQuery({
                         text: 'Config not found',
-                        show_alert: true
+                        show_alert: false
                     });
                     
                     return;
@@ -332,7 +350,7 @@ telegram.updates.on('callback_query', async (context) => {
 
                 // Генерация хэша для конфигурации
                 const configHash = generateHash(configLink);
-                const qrCodePath = path.join(cacheQrDir, `qr_${configHash}.png`);
+                const qrCodePath = path.join(cacheQrDir, `${configHash}.png`);
 
                 // Проверка, существует ли уже QR-код
                 if (fs.existsSync(qrCodePath)) {
@@ -363,15 +381,24 @@ telegram.updates.on('callback_query', async (context) => {
                     }
                 } else {
                     try {
-                        // Генерация нового QR-кода
-                        await QRCode.toFile(qrCodePath, configLink);
+                        // Опции для настройки цветов и разрешения QR-кода
+                        const qrOptions = {
+                            color: {
+                                dark: '#474747',
+                                light: '#E8E8E8'
+                            },
+                            width: 720
+                        };
+
+                        // Генерация нового QR-кода с опциями
+                        await QRCode.toFile(qrCodePath, configLink, qrOptions);
 
                         // Отправка нового QR-кода
                         if (context.message.photo || context.message.document) {
                             await context.message.editMessageMedia({
                                 type: 'photo',
                                 media: MediaSource.path(qrCodePath),
-                                caption: `\`${configLink}\``,
+                                caption: `\`\`\`${configLink}\`\`\``,
                                 parse_mode: 'markdown'
                             }, {
                                 reply_markup: keyboard.config
@@ -385,7 +412,7 @@ telegram.updates.on('callback_query', async (context) => {
                             await context.sendPhoto(
                                 MediaSource.path(qrCodePath),
                                 {
-                                    caption: `\`${configLink}\``,
+                                    caption: `\`\`\`${configLink}\`\`\``,
                                     reply_markup: keyboard.config,
                                     parse_mode: 'markdown'
                                 }
@@ -395,7 +422,7 @@ telegram.updates.on('callback_query', async (context) => {
                         console.error('Error displaying config:', err);
                         await context.answerCallbackQuery({
                             text: 'Error displaying config',
-                            show_alert: true
+                            show_alert: false
                         });
                     }
                 }
