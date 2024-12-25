@@ -1,8 +1,12 @@
 // main.js (не удалять строку)
 
-import { Telegram } from 'puregram';
+import { Telegram, MediaSource } from 'puregram';
 import dotenv from 'dotenv';
 import axios from 'axios';
+import QRCode from 'qrcode';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
 import * as log from './service/logging.js';
 import {
     findOrCreateUser,
@@ -60,18 +64,43 @@ const generateStartMessage = (userId, userData) => {
 // Функция для отправки стартового сообщения
 const sendStartMessage = async (context) => {
     try {
+        // Получение данных пользователя из MongoDB
+        const user = await findOrCreateUser({ user_id: context.senderId });
+        if (!user) {
+            throw new Error('User not found in local database.');
+        }
+
+        const userTheme = user.theme || 'light';
+        const imagePath = `./themes/${userTheme}/start.png`;
+
         const userData = await getUserData(context.senderId);
         const message = generateStartMessage(context.senderId, userData);
 
-        await context.send(message, {
-            reply_markup: await keyboard.start(context.senderId),
-            parse_mode: 'markdown'
-        });
+        // Отправка картинки с сообщением
+        await context.sendPhoto(
+            MediaSource.path(imagePath),
+            {
+                caption: message,
+                reply_markup: await keyboard.start(context.senderId),
+                parse_mode: 'markdown'
+            }
+        );
     } catch (error) {
         console.error('Error sending start message:', error);
         await context.send('Произошла ошибка при загрузке данных пользователя.');
     }
 };
+
+// Функция для генерации хэша
+function generateHash(data) {
+    return crypto.createHash('sha256').update(data).digest('hex');
+}
+
+// Создание директории, если она не существует
+const cacheDir = './cache';
+if (!fs.existsSync(cacheDir)) {
+    fs.mkdirSync(cacheDir);
+}
 
 // Обработчик инлайн-кнопок
 telegram.updates.on('callback_query', async (context) => {
@@ -82,16 +111,43 @@ telegram.updates.on('callback_query', async (context) => {
     const action = context.data;
     switch (action) {
         case 'settings':
-            await context.message.editText('Settings opened', {
-                reply_markup: keyboard.settings
-            });
-            await context.answerCallbackQuery();
+            try {
+                // Получение данных пользователя из MongoDB
+                const user = await findOrCreateUser({ user_id: context.senderId });
+                if (!user) {
+                    throw new Error('User not found in local database.');
+                }
+        
+                const userTheme = user.theme || 'light';
+                const imagePath = `./themes/${userTheme}/settings.png`;
+        
+                // Редактирование сообщения с медиа
+                if (context.message.photo || context.message.document) {
+                    await context.message.editMessageMedia({
+                        type: 'photo',
+                        media: MediaSource.path(imagePath),
+                        caption: '',
+                        parse_mode: 'markdown'
+                    }, {
+                        reply_markup: keyboard.settings
+                    });
+                } else {
+                    await context.message.editText('Settings opened', {
+                        reply_markup: keyboard.settings,
+                        parse_mode: 'markdown'
+                    });
+                }
+        
+                await context.answerCallbackQuery();
+            } catch (error) {
+                console.error('Error while opening settings:', error);
+        
+                await context.answerCallbackQuery({
+                    text: 'Произошла ошибка при открытии настроек.',
+                    show_alert: true
+                });
+            }
             break;
-            
-
-        case 'backToSettings':
-            break;
-
 
         case 'changeTheme':
             try {
@@ -127,35 +183,87 @@ telegram.updates.on('callback_query', async (context) => {
 
         case 'backToStart':
             try {
-                const userData = await getUserData(context.senderId);
-                const message = generateStartMessage(context.senderId, userData);
-
-                await context.message.editText(message, {
-                    reply_markup: await keyboard.start(context.senderId),
-                    parse_mode: 'markdown'
-                });
+                // Получение данных пользователя из локальной базы MongoDB
+                const user = await findOrCreateUser({ user_id: context.senderId });
+        
+                if (!user) {
+                    throw new Error('User not found in local database.');
+                }
+        
+                const userTheme = user.theme || 'light';
+                const imagePath = `./themes/${userTheme}/start.png`;
+        
+                const message = generateStartMessage(context.senderId, await getUserData(context.senderId));
+        
+                // Проверяем, содержит ли сообщение медиа или текст
+                if (context.message.photo || context.message.document) {
+                    // Если сообщение содержит медиа, редактируем его через editMessageMedia
+                    await context.message.editMessageMedia({
+                        type: 'photo',
+                        media: MediaSource.path(imagePath),
+                        caption: message,
+                        parse_mode: 'markdown'
+                    }, {
+                        reply_markup: await keyboard.start(context.senderId)
+                    });
+                } else {
+                    // Если сообщение содержит текст, редактируем текст
+                    await context.message.editText(message, {
+                        reply_markup: await keyboard.start(context.senderId),
+                        parse_mode: 'markdown'
+                    });
+                }
+        
+                await context.answerCallbackQuery();
             } catch (err) {
                 console.error('Error while returning to start screen:', err);
+        
                 await context.answerCallbackQuery({
                     text: 'Произошла ошибка при возврате в главное меню.',
                     show_alert: true
                 });
             }
-            await context.answerCallbackQuery();
             break;
 
         case 'configList': {
-            const userData = await getUserData(context.senderId);
-
-            await context.message.editText('Choose a config:', {
-                reply_markup: keyboard.generateConfigList(userData),
-                parse_mode: 'markdown'
-            });
+            try {
+                const user = await findOrCreateUser({ user_id: context.senderId });
+                if (!user) {
+                    throw new Error('User not found in local database.');
+                }
         
-            await context.answerCallbackQuery();
+                const userTheme = user.theme || 'light';
+                const imagePath = `./themes/${userTheme}/configList.png`;
+                const userData = await getUserData(context.senderId);
+        
+                if (context.message.photo || context.message.document) {
+                    await context.message.editMessageMedia({
+                        type: 'photo',
+                        media: MediaSource.path(imagePath),
+                        caption: '',
+                        parse_mode: 'markdown'
+                    }, {
+                        reply_markup: keyboard.generateConfigList(userData)
+                    });
+                } else {
+                    await context.message.editText('Choose a config:', {
+                        reply_markup: keyboard.generateConfigList(userData),
+                        parse_mode: 'markdown'
+                    });
+                }
+        
+                await context.answerCallbackQuery();
+            } catch (error) {
+                console.error('Error while displaying config list:', error);
+        
+                await context.answerCallbackQuery({
+                    text: 'Произошла ошибка при загрузке списка конфигов.',
+                    show_alert: true
+                });
+            }
             break;
         }
-        
+                
         case 'backToConfiList': {
             const userData = await getUserData(context.senderId);
     
@@ -166,14 +274,30 @@ telegram.updates.on('callback_query', async (context) => {
                 });
                 return;
             }
-        
-            await context.message.editText('Choose a config:', {
-                reply_markup: keyboard.generateConfigList(userData),
-                parse_mode: 'markdown'
-            });
+
+            if (context.message.text) {
+                await context.message.editText('Choose a config:', {
+                    reply_markup: keyboard.generateConfigList(userData),
+                    parse_mode: 'markdown'
+                });
+            } else if (context.message.photo || context.message.document) {
+                await context.message.editMessageMedia({
+                    type: 'photo',
+                    media: MediaSource.path('./themes/light/configList.png'),
+                    caption: 'Choose a config:',
+                    parse_mode: 'markdown'
+                }, {
+                    reply_markup: keyboard.generateConfigList(userData)
+                });
+            } else {
+                await context.send('Choose a config:', {
+                    reply_markup: keyboard.generateConfigList(userData),
+                    parse_mode: 'markdown'
+                });
+            }
         
             await context.answerCallbackQuery();
-        break;
+            break;
         }
 
         default:
@@ -199,24 +323,81 @@ telegram.updates.on('callback_query', async (context) => {
 
                 if (!configLink) {
                     await context.answerCallbackQuery({
-                    text: 'Config not found',
-                    show_alert: true
+                        text: 'Config not found',
+                        show_alert: true
                     });
                     
                     return;
-                }   
+                }
 
-                try {
-                    await context.message.editText(`\`${configLink}\``, {
-                        reply_markup: keyboard.config,
-                        parse_mode: 'markdown'
-                    });
-                } catch (err) {
-                    console.error('Error displaying config:', err);
-                    await context.answerCallbackQuery({
-                        text: 'Error displaying config',
-                        show_alert: true
-                    });
+                // Генерация хэша для конфигурации
+                const configHash = generateHash(configLink);
+                const qrCodePath = path.join(cacheDir, `qr_${configHash}.png`);
+
+                // Проверка, существует ли уже QR-код
+                if (fs.existsSync(qrCodePath)) {
+                    // Отправка существующего QR-кода
+                    if (context.message.photo || context.message.document) {
+                        await context.message.editMessageMedia({
+                            type: 'photo',
+                            media: MediaSource.path(qrCodePath),
+                            caption: `\`\`\`${configLink}\`\`\``,
+                            parse_mode: 'markdown'
+                        }, {
+                            reply_markup: keyboard.config
+                        });
+                    } else if (context.message.text) {
+                        await context.message.editText(`\`${configLink}\``, {
+                            reply_markup: keyboard.config,
+                            parse_mode: 'markdown'
+                        });
+                    } else {
+                        await context.sendPhoto(
+                            MediaSource.path(qrCodePath),
+                            {
+                                caption: `\`\`\`${configLink}\`\`\``,
+                                reply_markup: keyboard.config,
+                                parse_mode: 'markdown'
+                            }
+                        );
+                    }
+                } else {
+                    try {
+                        // Генерация нового QR-кода
+                        await QRCode.toFile(qrCodePath, configLink);
+
+                        // Отправка нового QR-кода
+                        if (context.message.photo || context.message.document) {
+                            await context.message.editMessageMedia({
+                                type: 'photo',
+                                media: MediaSource.path(qrCodePath),
+                                caption: `\`${configLink}\``,
+                                parse_mode: 'markdown'
+                            }, {
+                                reply_markup: keyboard.config
+                            });
+                        } else if (context.message.text) {
+                            await context.message.editText(`\`${configLink}\``, {
+                                reply_markup: keyboard.config,
+                                parse_mode: 'markdown'
+                            });
+                        } else {
+                            await context.sendPhoto(
+                                MediaSource.path(qrCodePath),
+                                {
+                                    caption: `\`${configLink}\``,
+                                    reply_markup: keyboard.config,
+                                    parse_mode: 'markdown'
+                                }
+                            );
+                        }
+                    } catch (err) {
+                        console.error('Error displaying config:', err);
+                        await context.answerCallbackQuery({
+                            text: 'Error displaying config',
+                            show_alert: true
+                        });
+                    }
                 }
 
                 await context.answerCallbackQuery();
