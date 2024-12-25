@@ -406,6 +406,45 @@ telegram.updates.on('callback_query', async (context) => {
             break;
         }
 
+        case 'advanced_configs': {
+            try {
+                const userData = await getUserData(context.senderId);
+                
+                if (!userData) {
+                    await context.answerCallbackQuery({
+                        text: 'Error retrieving configs',
+                        show_alert: false
+                    });
+                    return;
+                }
+
+                if (context.message.photo || context.message.document) {
+                    await context.message.editMessageMedia({
+                        type: 'photo',
+                        media: MediaSource.path('./themes/light/configList.png'),
+                        caption: 'Choose a config:',
+                        parse_mode: 'markdown'
+                    }, {
+                        reply_markup: keyboard.generateAdvancedConfigList(userData)
+                    });
+                } else {
+                    await context.message.editText('Choose a config:', {
+                        reply_markup: keyboard.generateAdvancedConfigList(userData),
+                        parse_mode: 'markdown'
+                    });
+                }
+
+                await context.answerCallbackQuery();
+            } catch (error) {
+                console.error('Error while displaying advanced config list:', error);
+                await context.answerCallbackQuery({
+                    text: 'Произошла ошибка при загрузке расширенного списка.',
+                    show_alert: false
+                });
+            }
+            break;
+        }
+
         default:
             if (action.startsWith('config_')) {
                 const userData = await getUserData(context.senderId);

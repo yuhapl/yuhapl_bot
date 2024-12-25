@@ -73,7 +73,7 @@ export const settings = InlineKeyboard.keyboard([
     ],
     [
         InlineKeyboard.textButton({
-            text: 'Назад',
+            text: '⬅️ Назад',
             payload: 'backToStart'
         })
     ]
@@ -91,7 +91,7 @@ export const backToStart = InlineKeyboard.keyboard([
 export const config = InlineKeyboard.keyboard([
     [
         InlineKeyboard.textButton({
-            text: 'Назад',
+            text: '⬅️ Назад',
             payload: 'backToConfiList'
         })
     ]
@@ -99,16 +99,33 @@ export const config = InlineKeyboard.keyboard([
 
 
 // Генерация клавиатуры для списка конфигов
-export const generateConfigList = (userConfigs) => {
-    const keyboard = [];
+export const generateConfigList = () => {
+    const keyboard = [
+        [
+            InlineKeyboard.textButton({
+                text: '⭐️ Авто',
+                payload: 'config_auto'
+            })
+        ],
+        [
+            InlineKeyboard.textButton({
+                text: '🛠 Продвинутое',
+                payload: 'advanced_configs'
+            })
+        ],
+        [
+            InlineKeyboard.textButton({
+                text: '⬅️ Назад',
+                payload: 'backToStart'
+            })
+        ]
+    ];
 
-    // Добавляем кнопку "Авто"
-    keyboard.push([
-        InlineKeyboard.textButton({
-            text: 'Авто',
-            payload: 'config_auto'
-        })
-    ]);
+    return InlineKeyboard.keyboard(keyboard);
+};
+
+export const generateAdvancedConfigList = (userConfigs) => {
+    const keyboard = [];
 
     if (userConfigs.inbounds.vless) {
         userConfigs.inbounds.vless.forEach((inbound, index) => {
@@ -145,8 +162,8 @@ export const generateConfigList = (userConfigs) => {
 
     keyboard.push([
         InlineKeyboard.textButton({
-            text: 'Назад',
-            payload: 'backToStart'
+            text: '⬅️ Назад',
+            payload: 'backToConfiList'
         })
     ]);
 
