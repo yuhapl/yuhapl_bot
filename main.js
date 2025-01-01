@@ -301,13 +301,13 @@ telegram.updates.on('callback_query', async (context) => {
                     await context.message.editMessageMedia({
                         type: 'photo',
                         media: MediaSource.path(qrCodePath),
-                        caption: `\`\`\`${configLink}\`\`\``,
+                        caption: `\`${configLink}\``,
                         parse_mode: 'markdown'
                     }, {
                         reply_markup: keyboard.config
                     });
                 } else if (context.message.text) {
-                    await context.message.editText(`\`\`\`${configLink}\`\`\``, {
+                    await context.message.editText(`\`${configLink}\``, {
                         reply_markup: keyboard.config,
                         parse_mode: 'markdown'
                     });
@@ -315,7 +315,7 @@ telegram.updates.on('callback_query', async (context) => {
                     await context.sendPhoto(
                         MediaSource.path(qrCodePath),
                         {
-                            caption: `\`\`\`${configLink}\`\`\``,
+                            caption: `\`${configLink}\``,
                             reply_markup: keyboard.config,
                             parse_mode: 'markdown'
                         }
@@ -324,13 +324,28 @@ telegram.updates.on('callback_query', async (context) => {
             } else {
                 try {
                     // Опции для настройки цветов и разрешения QR-кода
+                    const user = await findOrCreateUser({ user_id: context.senderId });
+                    if (!user) {
+                        throw new Error('User not found in local database.');
+                    }
+                    
+                    const userTheme = user.theme || 'light';
                     const qrOptions = {
-                        color: {
-                            dark: '#474747',
-                            light: '#E8E8E8'
-                        },
+                        color: {},
                         width: 720
                     };
+                    
+                    if (userTheme === 'dark') {
+                        qrOptions.color = {
+                            dark: '#C6C6C6',
+                            light: '#2A2A2A'
+                        };
+                    } else if (userTheme === 'light') {
+                        qrOptions.color = {
+                            dark: '#474747',
+                            light: '#E8E8E8'
+                        };
+                    }
 
                     // Генерация нового QR-кода с опциями
                     await QRCode.toFile(qrCodePath, configLink, qrOptions);
@@ -371,64 +386,65 @@ telegram.updates.on('callback_query', async (context) => {
         }
 
         case 'backToConfiList': {
-            const userData = await getUserData(context.senderId);
-    
-            if (!userData) {
+            try {
+                const user = await findOrCreateUser({ user_id: context.senderId });
+                if (!user) {
+                    throw new Error('User not found in local database.');
+                }
+
+                const userTheme = user.theme || 'light';
+                const imagePath = `./themes/${userTheme}/configList.png`;
+                const userData = await getUserData(context.senderId);
+
+                if (context.message.photo || context.message.document) {
+                    await context.message.editMessageMedia({
+                        type: 'photo',
+                        media: MediaSource.path(imagePath),
+                        caption: '',
+                        parse_mode: 'markdown'
+                    }, {
+                        reply_markup: keyboard.generateConfigList(userData)
+                    });
+                } else {
+                    await context.message.editText('', {
+                        reply_markup: keyboard.generateConfigList(userData),
+                        parse_mode: 'markdown'
+                    });
+                }
+
+                await context.answerCallbackQuery();
+            } catch (error) {
+                console.error('Error while returning to config list:', error);
                 await context.answerCallbackQuery({
-                    text: 'Error retrieving configs',
+                    text: 'Произошла ошибка при возврате к списку конфигов.',
                     show_alert: false
                 });
-                return;
             }
-
-            if (context.message.text) {
-                await context.message.editText('Choose a config:', {
-                    reply_markup: keyboard.generateConfigList(userData),
-                    parse_mode: 'markdown'
-                });
-            } else if (context.message.photo || context.message.document) {
-                await context.message.editMessageMedia({
-                    type: 'photo',
-                    media: MediaSource.path('./themes/light/configList.png'),
-                    caption: 'Choose a config:',
-                    parse_mode: 'markdown'
-                }, {
-                    reply_markup: keyboard.generateConfigList(userData)
-                });
-            } else {
-                await context.send('Choose a config:', {
-                    reply_markup: keyboard.generateConfigList(userData),
-                    parse_mode: 'markdown'
-                });
-            }
-        
-            await context.answerCallbackQuery();
             break;
         }
 
         case 'advanced_configs': {
             try {
-                const userData = await getUserData(context.senderId);
-                
-                if (!userData) {
-                    await context.answerCallbackQuery({
-                        text: 'Error retrieving configs',
-                        show_alert: false
-                    });
-                    return;
+                const user = await findOrCreateUser({ user_id: context.senderId });
+                if (!user) {
+                    throw new Error('User not found in local database.');
                 }
+
+                const userTheme = user.theme || 'light';
+                const imagePath = `./themes/${userTheme}/configList.png`;
+                const userData = await getUserData(context.senderId);
 
                 if (context.message.photo || context.message.document) {
                     await context.message.editMessageMedia({
                         type: 'photo',
-                        media: MediaSource.path('./themes/light/configList.png'),
-                        caption: 'Choose a config:',
+                        media: MediaSource.path(imagePath),
+                        caption: '',
                         parse_mode: 'markdown'
                     }, {
                         reply_markup: keyboard.generateAdvancedConfigList(userData)
                     });
                 } else {
-                    await context.message.editText('Choose a config:', {
+                    await context.message.editText('', {
                         reply_markup: keyboard.generateAdvancedConfigList(userData),
                         parse_mode: 'markdown'
                     });
@@ -441,6 +457,119 @@ telegram.updates.on('callback_query', async (context) => {
                     text: 'Произошла ошибка при загрузке расширенного списка.',
                     show_alert: false
                 });
+            }
+            break;
+        }
+
+        case 'config_': {
+            const [, protocol, index] = action.split('_'); // Пример: config_vless_0 -> [config, vless, 0]
+            const configIndex = parseInt(index, 10);
+
+            const userData = await getUserData(context.senderId);
+            if (!userData) {
+                await context.answerCallbackQuery({
+                    text: 'Error retrieving config',
+                    show_alert: false
+                });
+                return;
+            }
+
+            const configLinks = userData.links.filter(link => link.toLowerCase().includes(protocol));
+            const configLink = configLinks[configIndex];
+            if (!configLink) {
+                await context.answerCallbackQuery({
+                    text: 'Config not found',
+                    show_alert: false
+                });
+                return;
+            }
+
+            const configHash = generateHash(configLink);
+            const qrCodePath = path.join(cacheQrDir, `${configHash}.png`);
+
+            if (fs.existsSync(qrCodePath)) {
+                if (context.message.photo || context.message.document) {
+                    await context.message.editMessageMedia({
+                        type: 'photo',
+                        media: MediaSource.path(qrCodePath),
+                        caption: `\`\`\`${configLink}\`\`\``,
+                        parse_mode: 'markdown'
+                    }, {
+                        reply_markup: keyboard.config
+                    });
+                } else if (context.message.text) {
+                    await context.message.editText(`\`${configLink}\``, {
+                        reply_markup: keyboard.config,
+                        parse_mode: 'markdown'
+                    });
+                } else {
+                    await context.sendPhoto(
+                        MediaSource.path(qrCodePath),
+                        {
+                            caption: `\`\`\`${configLink}\`\`\``,
+                            reply_markup: keyboard.config,
+                            parse_mode: 'markdown'
+                        }
+                    );
+                }
+            } else {
+                try {
+                    const user = await findOrCreateUser({ user_id: context.senderId });
+                    if (!user) {
+                        throw new Error('User not found in local database.');
+                    }
+
+                    const userTheme = user.theme || 'light';
+                    const qrOptions = {
+                        color: {},
+                        width: 720
+                    };
+
+                    if (userTheme === 'dark') {
+                        qrOptions.color = {
+                            dark: '#C6C6C6',
+                            light: '#2A2A2A'
+                        };
+                    } else if (userTheme === 'light') {
+                        qrOptions.color = {
+                            dark: '#474747',
+                            light: '#E8E8E8'
+                        };
+                    }
+
+                    await QRCode.toFile(qrCodePath, configLink, qrOptions);
+
+                    if (context.message.photo || context.message.document) {
+                        await context.message.editMessageMedia({
+                            type: 'photo',
+                            media: MediaSource.path(qrCodePath),
+                            caption: `\`\`\`${configLink}\`\`\``,
+                            parse_mode: 'markdown'
+                        }, {
+                            reply_markup: keyboard.config
+                        });
+                    } else if (context.message.text) {
+                        await context.message.editText(`\`${configLink}\``, {
+                            reply_markup: keyboard.config,
+                            parse_mode: 'markdown'
+                        });
+                    } else {
+                        await context.sendPhoto(
+                            MediaSource.path(qrCodePath),
+                            {
+                                caption: `\`\`\`${configLink}\`\`\``,
+                                reply_markup: keyboard.config,
+                                parse_mode: 'markdown'
+                            }
+                        );
+                    }
+                } catch (err) {
+                    console.error('Error displaying config:', err);
+                    await context.answerCallbackQuery({
+                        text: 'Error displaying config',
+                        show_alert: false
+                    });
+                }
             }
             break;
         }
@@ -509,13 +638,28 @@ telegram.updates.on('callback_query', async (context) => {
                 } else {
                     try {
                         // Опции для настройки цветов и разрешения QR-кода
+                        const user = await findOrCreateUser({ user_id: context.senderId });
+                        if (!user) {
+                            throw new Error('User not found in local database.');
+                        }
+                        
+                        const userTheme = user.theme || 'light';
                         const qrOptions = {
-                            color: {
-                                dark: '#474747',
-                                light: '#E8E8E8'
-                            },
+                            color: {},
                             width: 720
                         };
+                        
+                        if (userTheme === 'dark') {
+                            qrOptions.color = {
+                                dark: '#C6C6C6',
+                                light: '#2A2A2A'
+                            };
+                        } else if (userTheme === 'light') {
+                            qrOptions.color = {
+                                dark: '#474747',
+                                light: '#E8E8E8'
+                            };
+                        }
 
                         // Генерация нового QR-кода с опциями
                         await QRCode.toFile(qrCodePath, configLink, qrOptions);
