@@ -102,6 +102,16 @@ if (!fs.existsSync(cacheQrDir)) {
     fs.mkdirSync(cacheQrDir, { recursive: true });
 }
 
+// Создание директорий для QR-кодов, если они не существуют
+const cacheQrDirDark = './cache/qr/dark';
+const cacheQrDirLight = './cache/qr/light';
+if (!fs.existsSync(cacheQrDirDark)) {
+    fs.mkdirSync(cacheQrDirDark, { recursive: true });
+}
+if (!fs.existsSync(cacheQrDirLight)) {
+    fs.mkdirSync(cacheQrDirLight, { recursive: true });
+}
+
 // Обработчик инлайн-кнопок
 telegram.updates.on('callback_query', async (context) => {
     log.Action(context);
@@ -290,10 +300,15 @@ telegram.updates.on('callback_query', async (context) => {
                 });
                 return;
             }
-        
+            const user = await findOrCreateUser({ user_id: context.senderId });
+            if (!user) {
+                throw new Error('User not found in local database.');
+            }
+    
+            const userTheme = user.theme || 'light';
             const configLink = userData.subscription_url;
             const configHash = generateHash(configLink);
-            const qrCodePath = path.join(cacheQrDir, `${configHash}.png`);
+            const qrCodePath = path.join(cacheQrDir, `${userTheme}/${configHash}.png`);
         
             if (fs.existsSync(qrCodePath)) {
                 // Отправка существующего QR-кода
@@ -606,7 +621,13 @@ telegram.updates.on('callback_query', async (context) => {
 
                 // Генерация хэша для конфигурации
                 const configHash = generateHash(configLink);
-                const qrCodePath = path.join(cacheQrDir, `${configHash}.png`);
+                const user = await findOrCreateUser({ user_id: context.senderId });
+                if (!user) {
+                    throw new Error('User not found in local database.');
+                }
+
+                const userTheme = user.theme || 'light';
+                const qrCodePath = path.join(userTheme === 'dark' ? cacheQrDirDark : cacheQrDirLight, `${configHash}.png`);
 
                 // Проверка, существует ли уже QR-код
                 if (fs.existsSync(qrCodePath)) {
@@ -638,12 +659,6 @@ telegram.updates.on('callback_query', async (context) => {
                 } else {
                     try {
                         // Опции для настройки цветов и разрешения QR-кода
-                        const user = await findOrCreateUser({ user_id: context.senderId });
-                        if (!user) {
-                            throw new Error('User not found in local database.');
-                        }
-                        
-                        const userTheme = user.theme || 'light';
                         const qrOptions = {
                             color: {},
                             width: 720
