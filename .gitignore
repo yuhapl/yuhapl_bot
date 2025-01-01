@@ -2,3 +2,5 @@
 *.env
 package-lock.json
 yarn.lock
+/logs
+/cache

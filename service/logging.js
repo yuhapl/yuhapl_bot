@@ -1,86 +1,101 @@
-// /service/logging.js (не удалять)
-
+// logging.js
+import fs from 'fs';
+import path from 'path';
+import { createLogger, format, transports } from 'winston';
 import { getCurrentTime } from './timer.js';
+
+// Ensure the logs directory exists
+const logDirectory = path.resolve('logs');
+if (!fs.existsSync(logDirectory)) {
+    fs.mkdirSync(logDirectory, { recursive: true });
+}
+
+// Configure the logger
+const logger = createLogger({
+    level: 'info',
+    format: format.combine(
+        format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        format.printf(({ timestamp, level, message }) => {
+            return `[${timestamp}] [${level.toUpperCase()}]: ${message}`;
+        })
+    ),
+    transports: [
+        new transports.Console(),
+        new transports.File({ filename: path.join(logDirectory, 'app.log') })
+    ]
+});
+
+const logMessage = (level, message) => {
+    logger.log({ level, message });
+};
 
 export const Action = (context) => {
     const userId = context.senderId;
-    const time = getCurrentTime();
-
     if (context.text) {
-        console.log(`[${time}] ${userId}: User command "${context.text}" executed.`);
+        logMessage('info', `${userId}: User command "${context.text}" executed.`);
     } else if (context.data) {
-        console.log(`[${time}] ${userId}: User callback action "${context.data}" triggered.`);
+        logMessage('info', `${userId}: User callback action "${context.data}" triggered.`);
     } else {
-        console.log(`[${time}] ${userId}: User unrecognized action.`);
+        logMessage('warn', `${userId}: User unrecognized action.`);
     }
 };
 
 export const CreateUser = (userId) => {
-    const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: User added to the database.`);
+    logMessage('info', `${userId}: User added to the database.`);
 };
 
 export const ExistUser = (userId) => {
-    const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: User already exists in the database.`);
+    logMessage('info', `${userId}: User already exists in the database.`);
 };
 
 export const IncrementMessageCount = (userId) => {
-    const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: User message count incremented.`);
+    logMessage('info', `${userId}: User message count incremented.`);
 };
 
 export const IncrementInlineInteractionCount = (userId) => {
-    const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: User inline interaction count incremented.`);
+    logMessage('info', `${userId}: User inline interaction count incremented.`);
 };
 
 export const UpdateLastInteractionDate = (userId) => {
-    const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: User last interaction date updated.`);
+    logMessage('info', `${userId}: User last interaction date updated.`);
 };
 
 export const ToggleUserTheme = (userId, newTheme) => {
-    const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: User theme switched to "${newTheme}".`);
+    logMessage('info', `${userId}: User theme switched to "${newTheme}".`);
+};
+
+export const ToggleUserLanguage = (userId, newLanguage) => {
+    logMessage('info', `${userId}: User language switched to "${newLanguage}".`);
 };
 
 export const setAccessToken = (token) => {
-    const time = getCurrentTime();
-    console.log(`[${time}]: API token setted: ${token}.`)
-}
+    logMessage('info', `API token set: ${token}.`);
+};
 
 export const setAccessTokenError = (err) => {
-    const time = getCurrentTime();
-    console.log(`[${time}]: Error of setting API token: ${err}.`)
-}
+    logMessage('error', `Error setting API token: ${err}.`);
+};
 
 export const getAccessTokenError = (err) => {
-    const time = getCurrentTime();
-    console.log(`[${time}]: Error of getting API token: ${err}.`)
-}
+    logMessage('error', `Error getting API token: ${err}.`);
+};
 
 export const startPolling = (botUsername) => {
-    const time = getCurrentTime();
-    console.log(`[${time}]: Bot started: @${botUsername}.`)
-}
+    logMessage('info', `Bot started: @${botUsername}.`);
+};
 
 export const databaseConnect = () => {
-    const time = getCurrentTime();
-    console.log(`[${time}]: MongoDB connected.`)
-}
+    logMessage('info', `MongoDB connected.`);
+};
 
 export const databaseConnectError = (err) => {
-    const time = getCurrentTime();
-    console.log(`[${time}]: Error connecting to MongoDB: ${err}.`)
-}
+    logMessage('error', `Error connecting to MongoDB: ${err}.`);
+};
 
 export const isUserActiveError = (err, userId) => {
-    const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: Error checking user activity status: ${err}.`)
-}
+    logMessage('error', `${userId}: Error checking user activity status: ${err}.`);
+};
 
 export const isUserActive = (userId, status) => {
-    const time = getCurrentTime();
-    console.log(`[${time}] ${userId}: User activity status check: ${status}.`)
-}
+    logMessage('info', `${userId}: User activity status check: ${status}.`);
+};

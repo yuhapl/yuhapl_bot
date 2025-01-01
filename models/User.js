@@ -9,7 +9,7 @@ const UserSchema = new mongoose.Schema({
     firstMessageDate: { type: Date, default: () => new Date() },
     lastInteractionDate: { type: Date, default: () => new Date() },
     theme: { type: String, default: 'light', enum: ['dark', 'light'] },
-    language: { type: String, default: 'ru', enum: ['ru', 'en'] }
+    language: { type: String, default: 'russian', enum: ['russian', 'english'] }
 });
 
 export const User = mongoose.model('User', UserSchema);
