@@ -3,5 +3,4 @@
 package-lock.json
 yarn.lock
 /logs
-/themes
 /cache
