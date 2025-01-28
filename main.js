@@ -17,7 +17,7 @@ import {
 } from './service/userService.js';
 import mongoose from 'mongoose';
 import * as keyboard from './service/keyboards.js';
-import { initializeAccessToken, getAccessToken } from './service/apiService.js';
+import { getAccessToken, setAccessToken } from './service/apiService.js';
 
 dotenv.config();
 
@@ -737,12 +737,14 @@ const getUserData = async (userId) => {
 
 (async () => {
     try {
+        // Получаем токен перед началом обработки команд
+        await setAccessToken();
+
         const botInfo = await telegram.api.getMe();
         const botUsername = botInfo.username;
 
         await telegram.updates.startPolling();
         log.startPolling(botUsername);
-        const token = initializeAccessToken ();
     } catch (err) {
         log.setAccessTokenError(err);
     }
