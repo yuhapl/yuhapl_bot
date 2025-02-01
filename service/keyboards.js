@@ -5,7 +5,7 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import * as log from './logging.js'
 import { getAccessToken } from './apiService.js';
-import ru from '../locales/ru.js';
+import { getLocale } from '../locales/index.js';
 
 // Функция для проверки, активен ли пользователь
 export const isUserActive = async (userId) => {
@@ -38,14 +38,15 @@ export const isUserActive = async (userId) => {
     }
 };
 
-// Клавиатура для начального сообщения с условной кнопкой "Configs"
+// Клавиатура для начального сообщения
 export const start = async (userId) => {
     const keymarkup = [];
+    const locale = await getLocale(userId);
 
     if (await isUserActive(userId)) {
         keymarkup.push([
             InlineKeyboard.textButton({
-                text: ru.buttons.connections,
+                text: locale.buttons.connections,
                 payload: 'configList'
             })
         ]);
@@ -53,7 +54,7 @@ export const start = async (userId) => {
 
     keymarkup.push([
         InlineKeyboard.textButton({
-            text: ru.buttons.settings,
+            text: locale.buttons.settings,
             payload: 'settings'
         })
     ]);
@@ -62,61 +63,75 @@ export const start = async (userId) => {
 };
 
 // Клавиатура для настроек
-export const settings = InlineKeyboard.keyboard([
-    [
-        InlineKeyboard.textButton({
-            text: ru.buttons.theme,
-            payload: 'changeTheme'
-        }),
-        InlineKeyboard.textButton({
-            text: ru.buttons.language,
-            payload: 'changeLanguage'
-        })
-    ],
-    [
-        InlineKeyboard.textButton({
-            text: ru.buttons.back,
-            payload: 'backToStart'
-        })
-    ]
-]);
+export const settings = async (userId) => {
+    const locale = await getLocale(userId);
+    
+    return InlineKeyboard.keyboard([
+        [
+            InlineKeyboard.textButton({
+                text: locale.buttons.theme,
+                payload: 'changeTheme'
+            }),
+            InlineKeyboard.textButton({
+                text: locale.buttons.language,
+                payload: 'changeLanguage'
+            })
+        ],
+        [
+            InlineKeyboard.textButton({
+                text: locale.buttons.back,
+                payload: 'backToStart'
+            })
+        ]
+    ]);
+};
 
-export const backToStart = InlineKeyboard.keyboard([
-    [
-        InlineKeyboard.textButton({
-            text: ru.buttons.settings,
-            payload: 'settings'
-        })
-    ]
-]);
+export const backToStart = async (userId) => {
+    const locale = await getLocale(userId);
+    
+    return InlineKeyboard.keyboard([
+        [
+            InlineKeyboard.textButton({
+                text: locale.buttons.settings,
+                payload: 'settings'
+            })
+        ]
+    ]);
+};
 
-export const config = InlineKeyboard.keyboard([
-    [
-        InlineKeyboard.textButton({
-            text: ru.buttons.back,
-            payload: 'backToConfiList'
-        })
-    ]
-]);
+export const config = async (userId) => {
+    const locale = await getLocale(userId);
+    
+    return InlineKeyboard.keyboard([
+        [
+            InlineKeyboard.textButton({
+                text: locale.buttons.back,
+                payload: 'backToConfiList'
+            })
+        ]
+    ]);
+};
 
 // Генерация клавиатуры для списка конфигов
-export const generateConfigList = () => {
+export const generateConfigList = async (userId) => {
+    const locale = await getLocale(userId);
+    
     const keyboard = [
         [
             InlineKeyboard.textButton({
-                text: ru.buttons.auto,
+                text: locale.buttons.auto,
                 payload: 'config_auto'
             })
         ],
         [
             InlineKeyboard.textButton({
-                text: ru.buttons.advanced,
+                text: locale.buttons.advanced,
                 payload: 'advanced_configs'
             })
         ],
         [
             InlineKeyboard.textButton({
-                text: ru.buttons.back,
+                text: locale.buttons.back,
                 payload: 'backToStart'
             })
         ]
@@ -125,11 +140,25 @@ export const generateConfigList = () => {
     return InlineKeyboard.keyboard(keyboard);
 };
 
-export const generateAdvancedConfigList = (userConfigs) => {
+export const generateAdvancedConfigList = async (userConfigs, userId) => {
     const keyboard = [];
+    const locale = await getLocale(userId);
 
-    if (userConfigs.inbounds.vless) {
-        userConfigs.inbounds.vless.forEach((inbound, index) => {
+    if (!userConfigs || !userConfigs.inbounds) {
+        return InlineKeyboard.keyboard([
+            [
+                InlineKeyboard.textButton({
+                    text: locale.buttons.back,
+                    payload: 'backToConfiList'
+                })
+            ]
+        ]);
+    }
+
+    const { inbounds } = userConfigs;
+
+    if (inbounds.vless && Array.isArray(inbounds.vless)) {
+        inbounds.vless.forEach((inbound, index) => {
             keyboard.push([
                 InlineKeyboard.textButton({
                     text: `${inbound}`,
@@ -139,8 +168,8 @@ export const generateAdvancedConfigList = (userConfigs) => {
         });
     }
   
-    if (userConfigs.inbounds.vmess) {
-        userConfigs.inbounds.vmess.forEach((inbound, index) => {
+    if (inbounds.vmess && Array.isArray(inbounds.vmess)) {
+        inbounds.vmess.forEach((inbound, index) => {
             keyboard.push([
                 InlineKeyboard.textButton({
                     text: `${inbound}`,
@@ -150,8 +179,8 @@ export const generateAdvancedConfigList = (userConfigs) => {
         });
     }
 
-    if (userConfigs.inbounds.trojan) {
-        userConfigs.inbounds.trojan.forEach((inbound, index) => {
+    if (inbounds.trojan && Array.isArray(inbounds.trojan)) {
+        inbounds.trojan.forEach((inbound, index) => {
             keyboard.push([
                 InlineKeyboard.textButton({
                     text: `${inbound}`,
@@ -163,7 +192,7 @@ export const generateAdvancedConfigList = (userConfigs) => {
 
     keyboard.push([
         InlineKeyboard.textButton({
-            text: ru.buttons.back,
+            text: locale.buttons.back,
             payload: 'backToConfiList'
         })
     ]);
