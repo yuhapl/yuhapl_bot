@@ -5,6 +5,7 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import * as log from './logging.js'
 import { getAccessToken } from './apiService.js';
+import ru from '../locales/ru.js';
 
 // Функция для проверки, активен ли пользователь
 export const isUserActive = async (userId) => {
@@ -44,7 +45,7 @@ export const start = async (userId) => {
     if (await isUserActive(userId)) {
         keymarkup.push([
             InlineKeyboard.textButton({
-                text: '🌐 Подключения',
+                text: ru.buttons.connections,
                 payload: 'configList'
             })
         ]);
@@ -52,7 +53,7 @@ export const start = async (userId) => {
 
     keymarkup.push([
         InlineKeyboard.textButton({
-            text: '⚙️ Настройки',
+            text: ru.buttons.settings,
             payload: 'settings'
         })
     ]);
@@ -64,17 +65,17 @@ export const start = async (userId) => {
 export const settings = InlineKeyboard.keyboard([
     [
         InlineKeyboard.textButton({
-            text: 'Тема',
+            text: ru.buttons.theme,
             payload: 'changeTheme'
         }),
         InlineKeyboard.textButton({
-            text: 'Язык',
+            text: ru.buttons.language,
             payload: 'changeLanguage'
         })
     ],
     [
         InlineKeyboard.textButton({
-            text: '⬅️ Назад',
+            text: ru.buttons.back,
             payload: 'backToStart'
         })
     ]
@@ -83,7 +84,7 @@ export const settings = InlineKeyboard.keyboard([
 export const backToStart = InlineKeyboard.keyboard([
     [
         InlineKeyboard.textButton({
-            text: 'Настройки',
+            text: ru.buttons.settings,
             payload: 'settings'
         })
     ]
@@ -92,31 +93,30 @@ export const backToStart = InlineKeyboard.keyboard([
 export const config = InlineKeyboard.keyboard([
     [
         InlineKeyboard.textButton({
-            text: '⬅️ Назад',
+            text: ru.buttons.back,
             payload: 'backToConfiList'
         })
     ]
 ]);
-
 
 // Генерация клавиатуры для списка конфигов
 export const generateConfigList = () => {
     const keyboard = [
         [
             InlineKeyboard.textButton({
-                text: '⭐️ Авто',
+                text: ru.buttons.auto,
                 payload: 'config_auto'
             })
         ],
         [
             InlineKeyboard.textButton({
-                text: '🛠 Продвинутое',
+                text: ru.buttons.advanced,
                 payload: 'advanced_configs'
             })
         ],
         [
             InlineKeyboard.textButton({
-                text: '⬅️ Назад',
+                text: ru.buttons.back,
                 payload: 'backToStart'
             })
         ]
@@ -163,7 +163,7 @@ export const generateAdvancedConfigList = (userConfigs) => {
 
     keyboard.push([
         InlineKeyboard.textButton({
-            text: '⬅️ Назад',
+            text: ru.buttons.back,
             payload: 'backToConfiList'
         })
     ]);
