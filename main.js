@@ -91,7 +91,6 @@ const sendStartMessage = async (context) => {
         );
     } catch (error) {
         console.error('Error sending start message:', error);
-        await context.send('Произошла ошибка при загрузке данных пользователя.');
     }
 };
 
@@ -159,11 +158,6 @@ telegram.updates.on('callback_query', async (context) => {
                 await context.answerCallbackQuery();
             } catch (error) {
                 console.error('Error while opening settings:', error);
-        
-                await context.answerCallbackQuery({
-                    text: 'Произошла ошибка при открытии настроек.',
-                    show_alert: false
-                });
             }
             break;
 
@@ -192,10 +186,6 @@ telegram.updates.on('callback_query', async (context) => {
 
             } catch (err) {
                 console.error('Error while switching theme:', err);
-                await context.answerCallbackQuery({
-                    text: 'Error while switching theme',
-                    show_alert: false
-                });
             }
             break;
 
@@ -228,10 +218,6 @@ telegram.updates.on('callback_query', async (context) => {
                 }
             } catch (err) {
                 console.error('Error while switching language:', err);
-                await context.answerCallbackQuery({
-                    text: 'Ошибка при смене языка',
-                    show_alert: false
-                });
             }
             break;
 
@@ -268,11 +254,6 @@ telegram.updates.on('callback_query', async (context) => {
                 await context.answerCallbackQuery();
             } catch (err) {
                 console.error('Error while returning to start screen:', err);
-        
-                await context.answerCallbackQuery({
-                    text: 'Произошла ошибка при возврате в главное меню.',
-                    show_alert: false
-                });
             }
             break;
 
@@ -307,11 +288,6 @@ telegram.updates.on('callback_query', async (context) => {
                 await context.answerCallbackQuery();
             } catch (error) {
                 console.error('Error while displaying config list:', error);
-
-                await context.answerCallbackQuery({
-                    text: 'Произошла ошибка при загрузке списка конфигов.',
-                    show_alert: false
-                });
             }
             break;
         }
@@ -421,18 +397,10 @@ telegram.updates.on('callback_query', async (context) => {
                         }
                     } catch (err) {
                         console.error('Error displaying config:', err);
-                        await context.answerCallbackQuery({
-                            text: 'Error displaying config',
-                            show_alert: false
-                        });
                     }
                 }
             } catch (err) {
                 console.error('Error displaying config:', err);
-                await context.answerCallbackQuery({
-                    text: 'Error displaying config',
-                    show_alert: false
-                });
             }
             break;
         }
@@ -467,10 +435,6 @@ telegram.updates.on('callback_query', async (context) => {
                 await context.answerCallbackQuery();
             } catch (error) {
                 console.error('Error while returning to config list:', error);
-                await context.answerCallbackQuery({
-                    text: 'Произошла ошибка при возврате к списку конфигов.',
-                    show_alert: false
-                });
             }
             break;
         }
@@ -510,10 +474,6 @@ telegram.updates.on('callback_query', async (context) => {
                 await context.answerCallbackQuery();
             } catch (error) {
                 console.error('Error while displaying advanced config list:', error);
-                await context.answerCallbackQuery({
-                    text: 'Произошла ошибка при загрузке расширенного списка.',
-                    show_alert: false
-                });
             }
             break;
         }
@@ -525,10 +485,6 @@ telegram.updates.on('callback_query', async (context) => {
 
                 const userData = await getUserData(context.senderId);
                 if (!userData) {
-                    await context.answerCallbackQuery({
-                        text: 'Error retrieving config',
-                        show_alert: false
-                    });
                     return;
                 }
 
@@ -632,18 +588,10 @@ telegram.updates.on('callback_query', async (context) => {
                         }
                     } catch (err) {
                         console.error('Error displaying config:', err);
-                        await context.answerCallbackQuery({
-                            text: 'Error displaying config',
-                            show_alert: false
-                        });
                     }
                 }
             } catch (err) {
                 console.error('Error displaying config:', err);
-                await context.answerCallbackQuery({
-                    text: 'Error displaying config',
-                    show_alert: false
-                });
             }
             break;
         }
@@ -653,11 +601,6 @@ telegram.updates.on('callback_query', async (context) => {
                 const userData = await getUserData(context.senderId);
 
                 if (!userData) {
-                    await context.answerCallbackQuery({
-                        text: 'Error retrieving config',
-                        show_alert: false
-                    });
-                
                     return;
                 }
 
@@ -765,10 +708,6 @@ telegram.updates.on('callback_query', async (context) => {
                         }
                     } catch (err) {
                         console.error('Error displaying config:', err);
-                        await context.answerCallbackQuery({
-                            text: 'Error displaying config',
-                            show_alert: false
-                        });
                     }
                 }
 
