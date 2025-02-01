@@ -18,6 +18,7 @@ import {
 import mongoose from 'mongoose';
 import * as keyboard from './service/keyboards.js';
 import { getAccessToken, setAccessToken } from './service/apiService.js';
+import { getLocale } from './locales/index.js';
 
 dotenv.config();
 
@@ -43,22 +44,24 @@ telegram.updates.on('message', async (context) => {
 });
 
 // Функция для формирования стартового сообщения
-const generateStartMessage = (userId, userData) => {
+const generateStartMessage = async (userId, userData) => {
+    const user = await findOrCreateUser({ user_id: userId });
+    const locale = await getLocale(userId);
 
     const isActive = userData?.status === 'active';
     const expireDate = userData?.expire
-        ? `до ${new Date(userData.expire * 1000).toLocaleDateString('ru-RU')}`
+        ? `${locale.messages.statusActive} ${new Date(userData.expire * 1000).toLocaleDateString()}`
         : '∞';
 
     const trafficInfo = isActive ? (
         userData.data_limit === null
-            ? `Трафик: ∞ ГБ`
-            : `Трафик: ${((userData.data_limit - userData.used_traffic) / (1024 ** 3)).toFixed(1)}/${(userData.data_limit / (1024 ** 3)).toFixed(0)} ГБ`
+            ? `${locale.messages.traffic} ${locale.messages.trafficUnlimited}`
+            : `${locale.messages.traffic} ${((userData.data_limit - userData.used_traffic) / (1024 ** 3)).toFixed(1)}/${(userData.data_limit / (1024 ** 3)).toFixed(0)} ${locale.messages.gb}`
     ) : '';
 
-    const status = isActive ? `Статус: ${expireDate}` : 'Не активен';
+    const status = isActive ? `${locale.messages.status} ${expireDate}` : locale.messages.statusInactive;
 
-    return `#️⃣ ID: ${userId}\n📅 ${status}\n📶 ${trafficInfo}`;
+    return `${locale.messages.id} ${userId}\n${status}\n${trafficInfo}`;
 };
 
 // Функция для отправки стартового сообщения
@@ -71,10 +74,11 @@ const sendStartMessage = async (context) => {
         }
 
         const userTheme = user.theme || 'light';
-        const imagePath = `./themes/${userTheme}/start.png`;
+        const userLanguage = user.language || 'russian';
+        const imagePath = getImagePath(userTheme, userLanguage, 'start');
 
         const userData = await getUserData(context.senderId);
-        const message = generateStartMessage(context.senderId, userData);
+        const message = await generateStartMessage(context.senderId, userData);
 
         // Отправка картинки с сообщением
         await context.sendPhoto(
@@ -89,6 +93,11 @@ const sendStartMessage = async (context) => {
         console.error('Error sending start message:', error);
         await context.send('Произошла ошибка при загрузке данных пользователя.');
     }
+};
+
+// Обновляем функцию для получения пути к изображению UI
+const getImagePath = (theme, language, imageName) => {
+    return `./themes/${theme}/${language}/${imageName}.png`;
 };
 
 // Функция для генерации хэша
@@ -122,16 +131,15 @@ telegram.updates.on('callback_query', async (context) => {
     switch (action) {
         case 'settings':
             try {
-                // Получение данных пользователя из MongoDB
                 const user = await findOrCreateUser({ user_id: context.senderId });
                 if (!user) {
                     throw new Error('User not found in local database.');
                 }
         
                 const userTheme = user.theme || 'light';
-                const imagePath = `./themes/${userTheme}/settings.png`;
+                const userLanguage = user.language || 'russian';
+                const imagePath = getImagePath(userTheme, userLanguage, 'settings');
         
-                // Редактирование сообщения с медиа
                 if (context.message.photo || context.message.document) {
                     await context.message.editMessageMedia({
                         type: 'photo',
@@ -139,11 +147,11 @@ telegram.updates.on('callback_query', async (context) => {
                         caption: '',
                         parse_mode: 'markdown'
                     }, {
-                        reply_markup: keyboard.settings
+                        reply_markup: await keyboard.settings(context.senderId)
                     });
                 } else {
                     await context.message.editText('Settings opened', {
-                        reply_markup: keyboard.settings,
+                        reply_markup: await keyboard.settings(context.senderId),
                         parse_mode: 'markdown'
                     });
                 }
@@ -162,7 +170,9 @@ telegram.updates.on('callback_query', async (context) => {
         case 'changeTheme':
             try {
                 const newTheme = await toggleUserTheme(context.senderId);
-                const imagePath = `./themes/${newTheme}/settings.png`;
+                const user = await findOrCreateUser({ user_id: context.senderId });
+                const userLanguage = user.language || 'russian';
+                const imagePath = getImagePath(newTheme, userLanguage, 'settings');
 
                 if (context.message.photo || context.message.document) {
                     await context.message.editMessageMedia({
@@ -171,19 +181,15 @@ telegram.updates.on('callback_query', async (context) => {
                         caption: '',
                         parse_mode: 'markdown'
                     }, {
-                        reply_markup: keyboard.settings
+                        reply_markup: await keyboard.settings(context.senderId)
                     });
                 } else {
                     await context.message.editText('Settings updated', {
-                        reply_markup: keyboard.settings,
+                        reply_markup: await keyboard.settings(context.senderId),
                         parse_mode: 'markdown'
                     });
                 }
 
-                await context.answerCallbackQuery({
-                    text: `Тема изменена: ${newTheme}`,
-                    show_alert: false
-                });
             } catch (err) {
                 console.error('Error while switching theme:', err);
                 await context.answerCallbackQuery({
@@ -196,22 +202,41 @@ telegram.updates.on('callback_query', async (context) => {
         case 'changeLanguage':
             try {
                 const newLanguage = await toggleUserLanguage(context.senderId);
-                await context.answerCallbackQuery({
-                    text: `Функция в разработке.\nЯзык изменён ${newLanguage}`,
-                    show_alert: false
-                });
+                const user = await findOrCreateUser({ user_id: context.senderId });
+                
+                if (!user) {
+                    throw new Error('User not found in local database.');
+                }
+
+                const userTheme = user.theme || 'light';
+                const imagePath = getImagePath(userTheme, newLanguage, 'settings');
+
+                if (context.message.photo || context.message.document) {
+                    await context.message.editMessageMedia({
+                        type: 'photo',
+                        media: MediaSource.path(imagePath),
+                        caption: '',
+                        parse_mode: 'markdown'
+                    }, {
+                        reply_markup: await keyboard.settings(context.senderId)
+                    });
+                } else {
+                    await context.message.editText('Settings updated', {
+                        reply_markup: await keyboard.settings(context.senderId),
+                        parse_mode: 'markdown'
+                    });
+                }
             } catch (err) {
-                console.error('Error while switching language', err);
+                console.error('Error while switching language:', err);
                 await context.answerCallbackQuery({
-                    text: 'Error while switching language',
+                    text: 'Ошибка при смене языка',
                     show_alert: false
                 });
             }
-            break
+            break;
 
         case 'backToStart':
             try {
-                // Получение данных пользователя из локальной базы MongoDB
                 const user = await findOrCreateUser({ user_id: context.senderId });
         
                 if (!user) {
@@ -219,13 +244,12 @@ telegram.updates.on('callback_query', async (context) => {
                 }
         
                 const userTheme = user.theme || 'light';
-                const imagePath = `./themes/${userTheme}/start.png`;
+                const userLanguage = user.language || 'russian';
+                const imagePath = getImagePath(userTheme, userLanguage, 'start');
         
-                const message = generateStartMessage(context.senderId, await getUserData(context.senderId));
+                const message = await generateStartMessage(context.senderId, await getUserData(context.senderId));
         
-                // Проверяем, содержит ли сообщение медиа или текст
                 if (context.message.photo || context.message.document) {
-                    // Если сообщение содержит медиа, редактируем его через editMessageMedia
                     await context.message.editMessageMedia({
                         type: 'photo',
                         media: MediaSource.path(imagePath),
@@ -235,7 +259,6 @@ telegram.updates.on('callback_query', async (context) => {
                         reply_markup: await keyboard.start(context.senderId)
                     });
                 } else {
-                    // Если сообщение содержит текст, редактируем текст
                     await context.message.editText(message, {
                         reply_markup: await keyboard.start(context.senderId),
                         parse_mode: 'markdown'
@@ -259,11 +282,12 @@ telegram.updates.on('callback_query', async (context) => {
                 if (!user) {
                     throw new Error('User not found in local database.');
                 }
-        
+
                 const userTheme = user.theme || 'light';
-                const imagePath = `./themes/${userTheme}/configList.png`;
+                const userLanguage = user.language || 'russian';
+                const imagePath = getImagePath(userTheme, userLanguage, 'configList');
                 const userData = await getUserData(context.senderId);
-        
+
                 if (context.message.photo || context.message.document) {
                     await context.message.editMessageMedia({
                         type: 'photo',
@@ -271,113 +295,70 @@ telegram.updates.on('callback_query', async (context) => {
                         caption: '',
                         parse_mode: 'markdown'
                     }, {
-                        reply_markup: keyboard.generateConfigList(userData)
+                        reply_markup: await keyboard.generateConfigList(context.senderId)
                     });
                 } else {
                     await context.message.editText('', {
-                        reply_markup: keyboard.generateConfigList(userData),
+                        reply_markup: await keyboard.generateConfigList(context.senderId),
                         parse_mode: 'markdown'
                     });
                 }
-        
+
                 await context.answerCallbackQuery();
             } catch (error) {
                 console.error('Error while displaying config list:', error);
-        
+
                 await context.answerCallbackQuery({
                     text: 'Произошла ошибка при загрузке списка конфигов.',
                     show_alert: false
                 });
-            } break;
+            }
+            break;
         }
-              
+
         case 'config_auto': {
-            const userData = await getUserData(context.senderId);
-            if (!userData || !userData.subscription_url) {
-                await context.answerCallbackQuery({
-                    text: 'Не удалось получить subscription_url',
-                    show_alert: false
-                });
-                return;
-            }
-            const user = await findOrCreateUser({ user_id: context.senderId });
-            if (!user) {
-                throw new Error('User not found in local database.');
-            }
-    
-            const userTheme = user.theme || 'light';
-            const configLink = userData.subscription_url;
-            const configHash = generateHash(configLink);
-            const qrCodePath = path.join(cacheQrDir, `${userTheme}/${configHash}.png`);
-        
-            if (fs.existsSync(qrCodePath)) {
-                // Отправка существующего QR-кода
-                if (context.message.photo || context.message.document) {
-                    await context.message.editMessageMedia({
-                        type: 'photo',
-                        media: MediaSource.path(qrCodePath),
-                        caption: `\`${configLink}\``,
-                        parse_mode: 'markdown'
-                    }, {
-                        reply_markup: keyboard.config
+            try {
+                const userData = await getUserData(context.senderId);
+                if (!userData || !userData.subscription_url) {
+                    await context.answerCallbackQuery({
+                        text: 'Не удалось получить subscription_url',
+                        show_alert: false
                     });
-                } else if (context.message.text) {
-                    await context.message.editText(`\`${configLink}\``, {
-                        reply_markup: keyboard.config,
-                        parse_mode: 'markdown'
-                    });
-                } else {
-                    await context.sendPhoto(
-                        MediaSource.path(qrCodePath),
-                        {
-                            caption: `\`${configLink}\``,
-                            reply_markup: keyboard.config,
-                            parse_mode: 'markdown'
-                        }
-                    );
+                    return;
                 }
-            } else {
-                try {
-                    // Опции для настройки цветов и разрешения QR-кода
-                    const user = await findOrCreateUser({ user_id: context.senderId });
-                    if (!user) {
-                        throw new Error('User not found in local database.');
-                    }
-                    
-                    const userTheme = user.theme || 'light';
-                    const qrOptions = {
-                        color: {},
-                        width: 720
-                    };
-                    
-                    if (userTheme === 'dark') {
-                        qrOptions.color = {
-                            dark: '#C6C6C6',
-                            light: '#2A2A2A'
-                        };
-                    } else if (userTheme === 'light') {
-                        qrOptions.color = {
-                            dark: '#474747',
-                            light: '#E8E8E8'
-                        };
-                    }
+                
+                const user = await findOrCreateUser({ user_id: context.senderId });
+                if (!user) {
+                    throw new Error('User not found in local database.');
+                }
 
-                    // Генерация нового QR-кода с опциями
-                    await QRCode.toFile(qrCodePath, configLink, qrOptions);
+                const userTheme = user.theme || 'light';
+                const userLanguage = user.language || 'russian';
+                const configLink = userData.subscription_url;
+                const configHash = generateHash(configLink);
+                
+                // Создаем папку для QR кодов с учетом темы и языка
+                const qrCodeDir = path.join(cacheQrDir, userTheme, userLanguage);
+                if (!fs.existsSync(qrCodeDir)) {
+                    fs.mkdirSync(qrCodeDir, { recursive: true });
+                }
+                
+                const qrCodePath = path.join(qrCodeDir, `${configHash}.png`);
 
-                    // Отправка нового QR-кода
+                if (fs.existsSync(qrCodePath)) {
+                    // Отправка существующего QR-кода
                     if (context.message.photo || context.message.document) {
                         await context.message.editMessageMedia({
                             type: 'photo',
                             media: MediaSource.path(qrCodePath),
-                            caption: `\`\`\`${configLink}\`\`\``,
+                            caption: `\`${configLink}\``,
                             parse_mode: 'markdown'
                         }, {
-                            reply_markup: keyboard.config
+                            reply_markup: await keyboard.config(context.senderId)
                         });
                     } else if (context.message.text) {
                         await context.message.editText(`\`${configLink}\``, {
-                            reply_markup: keyboard.config,
+                            reply_markup: await keyboard.config(context.senderId),
                             parse_mode: 'markdown'
                         });
                     } else {
@@ -385,19 +366,75 @@ telegram.updates.on('callback_query', async (context) => {
                             MediaSource.path(qrCodePath),
                             {
                                 caption: `\`\`\`${configLink}\`\`\``,
-                                reply_markup: keyboard.config,
+                                reply_markup: await keyboard.config(context.senderId),
                                 parse_mode: 'markdown'
                             }
                         );
                     }
-                } catch (err) {
-                    console.error('Error displaying config:', err);
-                    await context.answerCallbackQuery({
-                        text: 'Error displaying config',
-                        show_alert: false
-                    });
+                } else {
+                    try {
+                        // Опции для настройки цветов и разрешения QR-кода
+                        const qrOptions = {
+                            color: {},
+                            width: 1080
+                        };
+                        
+                        if (userTheme === 'dark') {
+                            qrOptions.color = {
+                                dark: '#C6C6C6',
+                                light: '#2A2A2A'
+                            };
+                        } else if (userTheme === 'light') {
+                            qrOptions.color = {
+                                dark: '#474747',
+                                light: '#E8E8E8'
+                            };
+                        }
+
+                        // Генерация нового QR-кода с опциями
+                        await QRCode.toFile(qrCodePath, configLink, qrOptions);
+
+                        // Отправка нового QR-кода
+                        if (context.message.photo || context.message.document) {
+                            await context.message.editMessageMedia({
+                                type: 'photo',
+                                media: MediaSource.path(qrCodePath),
+                                caption: `\`\`\`${configLink}\`\`\``,
+                                parse_mode: 'markdown'
+                            }, {
+                                reply_markup: await keyboard.config(context.senderId)
+                            });
+                        } else if (context.message.text) {
+                            await context.message.editText(`\`${configLink}\``, {
+                                reply_markup: await keyboard.config(context.senderId),
+                                parse_mode: 'markdown'
+                            });
+                        } else {
+                            await context.sendPhoto(
+                                MediaSource.path(qrCodePath),
+                                {
+                                    caption: `\`\`\`${configLink}\`\`\``,
+                                    reply_markup: await keyboard.config(context.senderId),
+                                    parse_mode: 'markdown'
+                                }
+                            );
+                        }
+                    } catch (err) {
+                        console.error('Error displaying config:', err);
+                        await context.answerCallbackQuery({
+                            text: 'Error displaying config',
+                            show_alert: false
+                        });
+                    }
                 }
-            } break;
+            } catch (err) {
+                console.error('Error displaying config:', err);
+                await context.answerCallbackQuery({
+                    text: 'Error displaying config',
+                    show_alert: false
+                });
+            }
+            break;
         }
 
         case 'backToConfiList': {
@@ -408,8 +445,8 @@ telegram.updates.on('callback_query', async (context) => {
                 }
 
                 const userTheme = user.theme || 'light';
-                const imagePath = `./themes/${userTheme}/configList.png`;
-                const userData = await getUserData(context.senderId);
+                const userLanguage = user.language || 'russian';
+                const imagePath = getImagePath(userTheme, userLanguage, 'configList');
 
                 if (context.message.photo || context.message.document) {
                     await context.message.editMessageMedia({
@@ -418,11 +455,11 @@ telegram.updates.on('callback_query', async (context) => {
                         caption: '',
                         parse_mode: 'markdown'
                     }, {
-                        reply_markup: keyboard.generateConfigList(userData)
+                        reply_markup: await keyboard.generateConfigList(context.senderId)
                     });
                 } else {
                     await context.message.editText('', {
-                        reply_markup: keyboard.generateConfigList(userData),
+                        reply_markup: await keyboard.generateConfigList(context.senderId),
                         parse_mode: 'markdown'
                     });
                 }
@@ -446,8 +483,13 @@ telegram.updates.on('callback_query', async (context) => {
                 }
 
                 const userTheme = user.theme || 'light';
-                const imagePath = `./themes/${userTheme}/configList.png`;
+                const userLanguage = user.language || 'russian';
+                const imagePath = getImagePath(userTheme, userLanguage, 'configList');
                 const userData = await getUserData(context.senderId);
+
+                if (!userData || !userData.inbounds) {
+                    throw new Error('No inbounds data available');
+                }
 
                 if (context.message.photo || context.message.document) {
                     await context.message.editMessageMedia({
@@ -456,11 +498,11 @@ telegram.updates.on('callback_query', async (context) => {
                         caption: '',
                         parse_mode: 'markdown'
                     }, {
-                        reply_markup: keyboard.generateAdvancedConfigList(userData)
+                        reply_markup: await keyboard.generateAdvancedConfigList(userData, context.senderId)
                     });
                 } else {
                     await context.message.editText('', {
-                        reply_markup: keyboard.generateAdvancedConfigList(userData),
+                        reply_markup: await keyboard.generateAdvancedConfigList(userData, context.senderId),
                         parse_mode: 'markdown'
                     });
                 }
@@ -477,83 +519,48 @@ telegram.updates.on('callback_query', async (context) => {
         }
 
         case 'config_': {
-            const [, protocol, index] = action.split('_'); // Пример: config_vless_0 -> [config, vless, 0]
-            const configIndex = parseInt(index, 10);
+            try {
+                const [, protocol, index] = action.split('_');
+                const configIndex = parseInt(index, 10);
 
-            const userData = await getUserData(context.senderId);
-            if (!userData) {
-                await context.answerCallbackQuery({
-                    text: 'Error retrieving config',
-                    show_alert: false
-                });
-                return;
-            }
-
-            const configLinks = userData.links.filter(link => link.toLowerCase().includes(protocol));
-            const configLink = configLinks[configIndex];
-            if (!configLink) {
-                await context.answerCallbackQuery({
-                    text: 'Config not found',
-                    show_alert: false
-                });
-                return;
-            }
-
-            const configHash = generateHash(configLink);
-            const qrCodePath = path.join(cacheQrDir, `${configHash}.png`);
-
-            if (fs.existsSync(qrCodePath)) {
-                if (context.message.photo || context.message.document) {
-                    await context.message.editMessageMedia({
-                        type: 'photo',
-                        media: MediaSource.path(qrCodePath),
-                        caption: `\`\`\`${configLink}\`\`\``,
-                        parse_mode: 'markdown'
-                    }, {
-                        reply_markup: keyboard.config
+                const userData = await getUserData(context.senderId);
+                if (!userData) {
+                    await context.answerCallbackQuery({
+                        text: 'Error retrieving config',
+                        show_alert: false
                     });
-                } else if (context.message.text) {
-                    await context.message.editText(`\`${configLink}\``, {
-                        reply_markup: keyboard.config,
-                        parse_mode: 'markdown'
-                    });
-                } else {
-                    await context.sendPhoto(
-                        MediaSource.path(qrCodePath),
-                        {
-                            caption: `\`\`\`${configLink}\`\`\``,
-                            reply_markup: keyboard.config,
-                            parse_mode: 'markdown'
-                        }
-                    );
+                    return;
                 }
-            } else {
-                try {
-                    const user = await findOrCreateUser({ user_id: context.senderId });
-                    if (!user) {
-                        throw new Error('User not found in local database.');
-                    }
 
-                    const userTheme = user.theme || 'light';
-                    const qrOptions = {
-                        color: {},
-                        width: 720
-                    };
+                const user = await findOrCreateUser({ user_id: context.senderId });
+                if (!user) {
+                    throw new Error('User not found in local database.');
+                }
 
-                    if (userTheme === 'dark') {
-                        qrOptions.color = {
-                            dark: '#C6C6C6',
-                            light: '#2A2A2A'
-                        };
-                    } else if (userTheme === 'light') {
-                        qrOptions.color = {
-                            dark: '#474747',
-                            light: '#E8E8E8'
-                        };
-                    }
+                const userTheme = user.theme || 'light';
+                const userLanguage = user.language || 'russian';
+                
+                const configLinks = userData.links.filter(link => link.toLowerCase().includes(protocol));
+                const configLink = configLinks[configIndex];
+                if (!configLink) {
+                    await context.answerCallbackQuery({
+                        text: 'Config not found',
+                        show_alert: false
+                    });
+                    return;
+                }
 
-                    await QRCode.toFile(qrCodePath, configLink, qrOptions);
+                const configHash = generateHash(configLink);
+                
+                // Создаем папку для QR кодов с учетом темы и языка
+                const qrCodeDir = path.join(cacheQrDir, userTheme, userLanguage);
+                if (!fs.existsSync(qrCodeDir)) {
+                    fs.mkdirSync(qrCodeDir, { recursive: true });
+                }
+                
+                const qrCodePath = path.join(qrCodeDir, `${configHash}.png`);
 
+                if (fs.existsSync(qrCodePath)) {
                     if (context.message.photo || context.message.document) {
                         await context.message.editMessageMedia({
                             type: 'photo',
@@ -561,11 +568,11 @@ telegram.updates.on('callback_query', async (context) => {
                             caption: `\`\`\`${configLink}\`\`\``,
                             parse_mode: 'markdown'
                         }, {
-                            reply_markup: keyboard.config
+                            reply_markup: await keyboard.config(context.senderId)
                         });
                     } else if (context.message.text) {
                         await context.message.editText(`\`${configLink}\``, {
-                            reply_markup: keyboard.config,
+                            reply_markup: await keyboard.config(context.senderId),
                             parse_mode: 'markdown'
                         });
                     } else {
@@ -573,18 +580,70 @@ telegram.updates.on('callback_query', async (context) => {
                             MediaSource.path(qrCodePath),
                             {
                                 caption: `\`\`\`${configLink}\`\`\``,
-                                reply_markup: keyboard.config,
+                                reply_markup: await keyboard.config(context.senderId),
                                 parse_mode: 'markdown'
                             }
                         );
                     }
-                } catch (err) {
-                    console.error('Error displaying config:', err);
-                    await context.answerCallbackQuery({
-                        text: 'Error displaying config',
-                        show_alert: false
-                    });
+                } else {
+                    try {
+                        const qrOptions = {
+                            color: {},
+                            width: 1080
+                        };
+                        
+                        if (userTheme === 'dark') {
+                            qrOptions.color = {
+                                dark: '#C6C6C6',
+                                light: '#2A2A2A'
+                            };
+                        } else if (userTheme === 'light') {
+                            qrOptions.color = {
+                                dark: '#474747',
+                                light: '#E8E8E8'
+                            };
+                        }
+
+                        await QRCode.toFile(qrCodePath, configLink, qrOptions);
+
+                        if (context.message.photo || context.message.document) {
+                            await context.message.editMessageMedia({
+                                type: 'photo',
+                                media: MediaSource.path(qrCodePath),
+                                caption: `\`\`\`${configLink}\`\`\``,
+                                parse_mode: 'markdown'
+                            }, {
+                                reply_markup: await keyboard.config(context.senderId)
+                            });
+                        } else if (context.message.text) {
+                            await context.message.editText(`\`${configLink}\``, {
+                                reply_markup: await keyboard.config(context.senderId),
+                                parse_mode: 'markdown'
+                            });
+                        } else {
+                            await context.sendPhoto(
+                                MediaSource.path(qrCodePath),
+                                {
+                                    caption: `\`\`\`${configLink}\`\`\``,
+                                    reply_markup: await keyboard.config(context.senderId),
+                                    parse_mode: 'markdown'
+                                }
+                            );
+                        }
+                    } catch (err) {
+                        console.error('Error displaying config:', err);
+                        await context.answerCallbackQuery({
+                            text: 'Error displaying config',
+                            show_alert: false
+                        });
+                    }
                 }
+            } catch (err) {
+                console.error('Error displaying config:', err);
+                await context.answerCallbackQuery({
+                    text: 'Error displaying config',
+                    show_alert: false
+                });
             }
             break;
         }
@@ -639,11 +698,11 @@ telegram.updates.on('callback_query', async (context) => {
                             caption: `\`\`\`${configLink}\`\`\``,
                             parse_mode: 'markdown'
                         }, {
-                            reply_markup: keyboard.config
+                            reply_markup: await keyboard.config(context.senderId)
                         });
                     } else if (context.message.text) {
                         await context.message.editText(`\`${configLink}\``, {
-                            reply_markup: keyboard.config,
+                            reply_markup: await keyboard.config(context.senderId),
                             parse_mode: 'markdown'
                         });
                     } else {
@@ -651,7 +710,7 @@ telegram.updates.on('callback_query', async (context) => {
                             MediaSource.path(qrCodePath),
                             {
                                 caption: `\`\`\`${configLink}\`\`\``,
-                                reply_markup: keyboard.config,
+                                reply_markup: await keyboard.config(context.senderId),
                                 parse_mode: 'markdown'
                             }
                         );
@@ -661,7 +720,7 @@ telegram.updates.on('callback_query', async (context) => {
                         // Опции для настройки цветов и разрешения QR-кода
                         const qrOptions = {
                             color: {},
-                            width: 720
+                            width: 1080
                         };
                         
                         if (userTheme === 'dark') {
@@ -687,11 +746,11 @@ telegram.updates.on('callback_query', async (context) => {
                                 caption: `\`\`\`${configLink}\`\`\``,
                                 parse_mode: 'markdown'
                             }, {
-                                reply_markup: keyboard.config
+                                reply_markup: await keyboard.config(context.senderId)
                             });
                         } else if (context.message.text) {
                             await context.message.editText(`\`${configLink}\``, {
-                                reply_markup: keyboard.config,
+                                reply_markup: await keyboard.config(context.senderId),
                                 parse_mode: 'markdown'
                             });
                         } else {
@@ -699,7 +758,7 @@ telegram.updates.on('callback_query', async (context) => {
                                 MediaSource.path(qrCodePath),
                                 {
                                     caption: `\`\`\`${configLink}\`\`\``,
-                                    reply_markup: keyboard.config,
+                                    reply_markup: await keyboard.config(context.senderId),
                                     parse_mode: 'markdown'
                                 }
                             );
