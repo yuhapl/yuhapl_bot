@@ -15,12 +15,12 @@ export const setAccessToken = async () => {
         const response = await axios.post(
             API_URL,
             new URLSearchParams({
-                grant_type: '',
+                grant_type: 'password',
                 username: process.env.LOGIN,
                 password: process.env.PASSWORD,
                 scope: '',
-                client_id: '',
-                client_secret: '',
+                client_id: 'string',
+                client_secret: 'string',
             }),
             {
                 headers: {
